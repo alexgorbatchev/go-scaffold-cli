@@ -15,6 +15,7 @@ type libCreateFlags struct {
 	pkg         string
 	module      string
 	description string
+	author      string
 	goVersion   string
 	force       bool
 	dryRun      bool
@@ -70,6 +71,9 @@ The project name defaults to the directory name of the target path (or the curre
 			}
 			if flags.description != "" {
 				opts.Description = flags.description
+			}
+			if flags.author != "" {
+				opts.Author = flags.author
 			}
 			if flags.goVersion != "" {
 				opts.GoVersion = flags.goVersion
@@ -151,8 +155,9 @@ The project name defaults to the directory name of the target path (or the curre
 
 	cmd.Flags().StringVarP(&flags.name, "name", "n", "", "Library project name (defaults to target directory name)")
 	cmd.Flags().StringVarP(&flags.pkg, "pkg", "p", "", "Go package name (defaults to sanitized project name)")
-	cmd.Flags().StringVarP(&flags.module, "module", "m", "", "Go module path (defaults to github.com/dj/<name>)")
+	cmd.Flags().StringVarP(&flags.module, "module", "m", "", "Go module path (defaults to github.com/<owner>/<name>)")
 	cmd.Flags().StringVarP(&flags.description, "description", "d", "", "Short description for library documentation")
+	cmd.Flags().StringVarP(&flags.author, "author", "a", "", "Author name (defaults to git config user.name or system user)")
 	cmd.Flags().StringVar(&flags.goVersion, "go-version", "", "Go version declared in go.mod (default: 1.26.2)")
 	cmd.Flags().BoolVarP(&flags.force, "force", "f", false, "Overwrite existing files if target directory is not empty")
 	cmd.Flags().BoolVar(&flags.dryRun, "dry-run", false, "Preview generated files without writing them to disk")

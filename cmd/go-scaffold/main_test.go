@@ -79,6 +79,7 @@ func TestCLICreateCommand_HumanMode(t *testing.T) {
 		"--binary", "custom-bin",
 		"--module", "github.com/custom/custom-mod",
 		"--description", "Custom CLI tool description",
+		"--author", "Custom Author",
 		"--go-version", "1.26.2",
 		"--no-git",
 		"--no-tidy",
@@ -175,6 +176,7 @@ func TestLibCreateCommand_HumanMode(t *testing.T) {
 		"--pkg", "mylib",
 		"--module", "github.com/alexgorbatchev/my-lib",
 		"--description", "A powerful library",
+		"--author", "Custom Lib Author",
 		"--no-git",
 		"--no-tidy",
 	)

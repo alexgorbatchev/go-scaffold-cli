@@ -1,8 +1,10 @@
 package scaffold
 
 import (
+	"errors"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -31,6 +33,145 @@ func TestCleanPackageName(t *testing.T) {
 	}
 }
 
+func TestDynamicDetection(t *testing.T) {
+	username := DetectUsername()
+	if username == "" {
+		t.Error("expected non-empty username")
+	}
+
+	owner := DetectGitHubOwner()
+	if owner == "" {
+		t.Error("expected non-empty owner")
+	}
+
+	author := DetectAuthor()
+	if author == "" {
+		t.Error("expected non-empty author")
+	}
+}
+
+func TestDynamicDetection_Fallbacks(t *testing.T) {
+	origLookup := lookupUserCurrent
+	origRun := runCommand
+	defer func() {
+		lookupUserCurrent = origLookup
+		runCommand = origRun
+	}()
+
+	// 1. user.Current fails, env USER is set
+	lookupUserCurrent = func() (*user.User, error) {
+		return nil, errors.New("lookup failed")
+	}
+	t.Setenv("USER", "testuser1")
+	t.Setenv("USERNAME", "")
+	if u := DetectUsername(); u != "testuser1" {
+		t.Errorf("expected 'testuser1', got %q", u)
+	}
+
+	// 2. env USER empty, env USERNAME set
+	t.Setenv("USER", "")
+	t.Setenv("USERNAME", "testuser2")
+	if u := DetectUsername(); u != "testuser2" {
+		t.Errorf("expected 'testuser2', got %q", u)
+	}
+
+	// 3. env vars empty, whoami command succeeds
+	t.Setenv("USER", "")
+	t.Setenv("USERNAME", "")
+	runCommand = func(name string, args ...string) ([]byte, error) {
+		if name == "whoami" {
+			return []byte("whoamiuser\n"), nil
+		}
+		return nil, errors.New("command failed")
+	}
+	if u := DetectUsername(); u != "whoamiuser" {
+		t.Errorf("expected 'whoamiuser', got %q", u)
+	}
+
+	// 4. all username methods fail -> fallback "user"
+	runCommand = func(name string, args ...string) ([]byte, error) {
+		return nil, errors.New("command failed")
+	}
+	if u := DetectUsername(); u != "user" {
+		t.Errorf("expected 'user', got %q", u)
+	}
+
+	// 5. DetectGitHubOwner fallbacks:
+	// a. gh succeeds
+	runCommand = func(name string, args ...string) ([]byte, error) {
+		if name == "gh" {
+			return []byte("ghowner\n"), nil
+		}
+		return nil, errors.New("not found")
+	}
+	if o := DetectGitHubOwner(); o != "ghowner" {
+		t.Errorf("expected 'ghowner', got %q", o)
+	}
+
+	// b. gh fails, git config github.user succeeds
+	runCommand = func(name string, args ...string) ([]byte, error) {
+		if name == "git" && len(args) == 2 && args[1] == "github.user" {
+			return []byte("gitghuser\n"), nil
+		}
+		return nil, errors.New("not found")
+	}
+	if o := DetectGitHubOwner(); o != "gitghuser" {
+		t.Errorf("expected 'gitghuser', got %q", o)
+	}
+
+	// c. git config user.username succeeds
+	runCommand = func(name string, args ...string) ([]byte, error) {
+		if name == "git" && len(args) == 2 && args[1] == "user.username" {
+			return []byte("gituser\n"), nil
+		}
+		return nil, errors.New("not found")
+	}
+	if o := DetectGitHubOwner(); o != "gituser" {
+		t.Errorf("expected 'gituser', got %q", o)
+	}
+
+	// d. all owner commands fail -> falls back to DetectUsername
+	t.Setenv("USER", "fallbackuser")
+	runCommand = func(name string, args ...string) ([]byte, error) {
+		return nil, errors.New("not found")
+	}
+	if o := DetectGitHubOwner(); o != "fallbackuser" {
+		t.Errorf("expected 'fallbackuser', got %q", o)
+	}
+
+	// 6. DetectAuthor fallbacks:
+	// a. git config user.name succeeds
+	runCommand = func(name string, args ...string) ([]byte, error) {
+		if name == "git" && len(args) == 2 && args[1] == "user.name" {
+			return []byte("Git Author Name\n"), nil
+		}
+		return nil, errors.New("not found")
+	}
+	if a := DetectAuthor(); a != "Git Author Name" {
+		t.Errorf("expected 'Git Author Name', got %q", a)
+	}
+
+	// b. git config fails, user.Current Name succeeds
+	runCommand = func(name string, args ...string) ([]byte, error) {
+		return nil, errors.New("not found")
+	}
+	lookupUserCurrent = func() (*user.User, error) {
+		return &user.User{Name: "OS User Name", Username: "osuser"}, nil
+	}
+	if a := DetectAuthor(); a != "OS User Name" {
+		t.Errorf("expected 'OS User Name', got %q", a)
+	}
+
+	// c. git config and user.Current Name empty -> falls back to username
+	lookupUserCurrent = func() (*user.User, error) {
+		return nil, errors.New("failed")
+	}
+	t.Setenv("USER", "authoruser")
+	if a := DetectAuthor(); a != "authoruser" {
+		t.Errorf("expected 'authoruser', got %q", a)
+	}
+}
+
 func TestDefaultOptions(t *testing.T) {
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -55,6 +196,12 @@ func TestDefaultOptions(t *testing.T) {
 	expectedName := filepath.Base(cwd)
 	if optsCLI.Name != expectedName {
 		t.Errorf("Normalize().Name = %q, want %q", optsCLI.Name, expectedName)
+	}
+	if optsCLI.Author == "" {
+		t.Error("expected non-empty Author in Normalize()")
+	}
+	if !strings.HasPrefix(optsCLI.Module, "github.com/") {
+		t.Errorf("expected Module starting with 'github.com/', got %q", optsCLI.Module)
 	}
 
 	optsLib := DefaultOptions("/tmp/my-super-lib", ProjectTypeLib)
@@ -91,6 +238,8 @@ func TestDefaultOptions(t *testing.T) {
 }
 
 func TestDeriveNames(t *testing.T) {
+	owner := DetectGitHubOwner()
+
 	tests := []struct {
 		name        string
 		pType       ProjectType
@@ -111,7 +260,7 @@ func TestDeriveNames(t *testing.T) {
 			inputBinary: "",
 			inputModule: "",
 			wantBinary:  "sample-track",
-			wantModule:  "github.com/alexgorbatchev/sample-track-cli",
+			wantModule:  "github.com/" + owner + "/sample-track-cli",
 		},
 		{
 			name:        "plain lib name",
@@ -120,7 +269,7 @@ func TestDeriveNames(t *testing.T) {
 			inputName:   "godeps",
 			inputModule: "",
 			wantPkg:     "godeps",
-			wantModule:  "github.com/alexgorbatchev/godeps",
+			wantModule:  "github.com/" + owner + "/godeps",
 		},
 		{
 			name:        "custom binary and module preserved",

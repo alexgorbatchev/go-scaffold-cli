@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -61,6 +62,13 @@ type Result struct {
 
 var nonAlphanumericRegex = regexp.MustCompile(`[^a-zA-Z0-9]`)
 
+var (
+	lookupUserCurrent = user.Current
+	runCommand        = func(name string, args ...string) ([]byte, error) {
+		return exec.Command(name, args...).Output()
+	}
+)
+
 // CleanPackageName sanitizes a string into a valid Go package identifier.
 func CleanPackageName(name string) string {
 	cleaned := nonAlphanumericRegex.ReplaceAllString(strings.ToLower(name), "")
@@ -68,6 +76,70 @@ func CleanPackageName(name string) string {
 		cleaned = "pkg" + cleaned
 	}
 	return cleaned
+}
+
+// DetectUsername determines the active system username with whoami fallback.
+func DetectUsername() string {
+	if u, err := lookupUserCurrent(); err == nil && u.Username != "" {
+		return u.Username
+	}
+	if v := os.Getenv("USER"); v != "" {
+		return v
+	}
+	if v := os.Getenv("USERNAME"); v != "" {
+		return v
+	}
+	if out, err := runCommand("whoami"); err == nil {
+		if s := strings.TrimSpace(string(out)); s != "" {
+			return s
+		}
+	}
+	return "user"
+}
+
+// DetectGitHubOwner dynamically detects the active GitHub username or org, falling back to DetectUsername().
+func DetectGitHubOwner() string {
+	// 1. Try GitHub CLI api user
+	if out, err := runCommand("gh", "api", "user", "-q", ".login"); err == nil {
+		if s := strings.TrimSpace(string(out)); s != "" && !strings.Contains(s, " ") {
+			return s
+		}
+	}
+
+	// 2. Try git config github.user
+	if out, err := runCommand("git", "config", "github.user"); err == nil {
+		if s := strings.TrimSpace(string(out)); s != "" {
+			return s
+		}
+	}
+
+	// 3. Try git config user.username
+	if out, err := runCommand("git", "config", "user.username"); err == nil {
+		if s := strings.TrimSpace(string(out)); s != "" {
+			return s
+		}
+	}
+
+	// 4. Fallback to system username
+	return DetectUsername()
+}
+
+// DetectAuthor dynamically detects the author's full name from git config or system user, falling back to DetectUsername().
+func DetectAuthor() string {
+	// 1. Try git config user.name
+	if out, err := runCommand("git", "config", "user.name"); err == nil {
+		if s := strings.TrimSpace(string(out)); s != "" {
+			return s
+		}
+	}
+
+	// 2. Try os/user full name
+	if u, err := lookupUserCurrent(); err == nil && u.Name != "" {
+		return u.Name
+	}
+
+	// 3. Fallback to system username
+	return DetectUsername()
 }
 
 // DefaultOptions returns an Options struct populated with sensible defaults.
@@ -88,7 +160,6 @@ func DefaultOptions(targetDir string, pType ProjectType) Options {
 	opts := Options{
 		Type:        pType,
 		TargetDir:   absDir,
-		Author:      "Alex Gorbatchev",
 		Year:        time.Now().Year(),
 		GoVersion:   "1.26.2",
 		CreatedDate: time.Now().Format("2006-01-02 15:04"),
@@ -143,11 +214,12 @@ func (o *Options) Normalize() {
 	}
 
 	if o.Module == "" {
-		o.Module = "github.com/alexgorbatchev/" + o.Name
+		owner := DetectGitHubOwner()
+		o.Module = "github.com/" + owner + "/" + o.Name
 	}
 
 	if o.Author == "" {
-		o.Author = "Alex Gorbatchev"
+		o.Author = DetectAuthor()
 	}
 
 	if o.Year == 0 {
