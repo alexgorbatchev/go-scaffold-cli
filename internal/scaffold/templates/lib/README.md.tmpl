@@ -1,0 +1,47 @@
+# {{.Name}}
+
+> {{.Description}}
+
+`{{.Name}}` is a Go library for {{.Description}}.
+
+---
+
+## What It Does
+
+- Provides modular, idiomatic Go primitives for {{.Name}}.
+- Offers zero-overhead, well-tested standard library first architecture.
+- Includes comprehensive offline unit test coverage.
+
+---
+
+## Installation
+
+```bash
+go get {{.Module}}
+```
+
+---
+
+## Quick Start
+
+```go
+package main
+
+import (
+	"fmt"
+
+	"{{.Module}}"
+)
+
+func main() {
+	client := {{.PkgName}}.New()
+	status := client.Status()
+	fmt.Println("Status:", status)
+}
+```
+
+---
+
+## License
+
+MIT License. Copyright (c) {{.Year}} {{.Author}}.

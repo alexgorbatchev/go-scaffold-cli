@@ -1,0 +1,32 @@
+---
+created_on: {{.CreatedDate}}
+status: current
+---
+
+# {{.Name}}
+
+{{.Description}}
+
+## Commands
+- **Build Local Binary:** `just build` (compiles to `bin/{{.Binary}}`)
+- **Run CLI with Arguments:** `just run [args...]`
+- **Run CLI in Agent Mode:** `just run-ai [args...]` (`AGENT=1`)
+- **Run Tests:** `just test` (`go test -v ./...`)
+- **Run Static Analysis & Tests:** `just check` (`go vet ./... && go test -v ./...`)
+- **Run Linter / Static Analysis:** `just vet` or `just lint` (`go vet ./...`)
+- **Format Source Code:** `just fmt` (`go fmt ./...`)
+
+## Setup & Environment
+- **Prerequisites:** Go {{.GoVersion}}+, `just`.
+- **Temporary Files:** Temporary file operations use `.tmp/` within the project root.
+
+## Conventions
+- **Output Formatting & No Decorative Headers:** All CLI output must be plain text without emojis across all modes.
+- **Tree Rendering:** Help screens and hierarchies render using `cobra-help-tree`.
+- **Agent Mode (`AGENT=1`):** When `AGENT=1` is set, output compact key-value pairs or bullets.
+- **Hermetic Unit Tests:** All unit tests must remain 100% offline and hermetic.
+
+## Boundaries
+- **Always:** Maintain >= 90% statement code coverage across Go packages.
+- **Always:** Run `just test` and `just vet` before committing changes.
+- **Never:** Commit compiled Go binaries (e.g. `bin/{{.Binary}}`) to git.

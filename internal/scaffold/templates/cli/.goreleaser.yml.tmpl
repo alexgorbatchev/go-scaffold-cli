@@ -1,0 +1,49 @@
+version: 2
+
+project_name: {{.Binary}}
+
+builds:
+  - id: {{.Binary}}
+    main: ./cmd/{{.Binary}}
+    binary: {{.Binary}}
+    ldflags:
+      - -s -w -X main.version={{ "{{" }} .Version {{ "}}" }}
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - id: versioned
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    name_template: "{{ "{{" }} .ProjectName {{ "}}" }}_{{ "{{" }} .Version {{ "}}" }}_{{ "{{" }} .Os {{ "}}" }}_{{ "{{" }} .Arch {{ "}}" }}"
+  - id: unversioned
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    name_template: "{{ "{{" }} .ProjectName {{ "}}" }}_{{ "{{" }} .Os {{ "}}" }}_{{ "{{" }} .Arch {{ "}}" }}"
+
+checksum:
+  name_template: checksums.txt
+
+release:
+  mode: keep-existing
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"

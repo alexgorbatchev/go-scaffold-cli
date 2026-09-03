@@ -1,0 +1,49 @@
+package {{.PkgName}}
+
+import (
+	"testing"
+)
+
+func TestNew_Default(t *testing.T) {
+	c := New()
+	if c == nil {
+		t.Fatal("expected non-nil Client")
+	}
+	if got := c.Status(); got != "ready" {
+		t.Errorf("Status() = %q, want 'ready'", got)
+	}
+	if got := c.Name(); got != "{{.Name}}" {
+		t.Errorf("Name() = %q, want %q", got, "{{.Name}}")
+	}
+}
+
+func TestNew_WithConfig(t *testing.T) {
+	tests := []struct {
+		name     string
+		cfg      Config
+		wantName string
+	}{
+		{
+			name:     "custom name",
+			cfg:      Config{Name: "custom"},
+			wantName: "custom",
+		},
+		{
+			name:     "empty config name defaults to project name",
+			cfg:      Config{Name: ""},
+			wantName: "{{.Name}}",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := New(tt.cfg)
+			if got := c.Name(); got != tt.wantName {
+				t.Errorf("Name() = %q, want %q", got, tt.wantName)
+			}
+			if got := c.Status(); got != "ready" {
+				t.Errorf("Status() = %q, want 'ready'", got)
+			}
+		})
+	}
+}

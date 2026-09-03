@@ -1,0 +1,23 @@
+package main
+
+import (
+	cobrahelptree "github.com/alexgorbatchev/cobra-help-tree"
+	"github.com/spf13/cobra"
+)
+
+var techCatalog = cobrahelptree.TechCatalog{
+	"{{.Binary}}": {
+		Summary:     "{{.Description}}",
+		Description: "{{.Description}} - command-line interface.",
+	},
+	"{{.Binary}} status": {
+		Summary:     "Display system and environment status",
+		Description: "Outputs current runtime readiness and version information.",
+	},
+}
+
+func setupHelp(cmd *cobra.Command) {
+	cobrahelptree.Setup(cmd, cobrahelptree.TreeOptions{
+		TechCatalog: techCatalog,
+	})
+}

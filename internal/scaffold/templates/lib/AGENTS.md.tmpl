@@ -1,0 +1,49 @@
+---
+created_on: {{.CreatedDate}}
+status: current
+---
+
+# AGENTS.md — {{.Name}}
+
+Operational guidelines, architecture, and developer interface specifications for AI agents interacting with or maintaining `{{.Name}}`.
+
+---
+
+## 1. Development & Verification Commands
+
+All development tasks must be executed using `just` recipes:
+
+```bash
+# Run full unit test suite with race detector and coverage check
+just test
+
+# Run static code analysis
+just vet
+
+# Format all Go source files
+just fmt
+
+# Verify module hygiene
+just tidy
+
+# Run all checks in sequence
+just check
+```
+
+---
+
+## 2. Architecture & Design Principles
+
+`{{.Name}}` is an idiomatic Go library designed with minimal external dependencies.
+
+---
+
+## 3. Operating Boundaries & Rules
+
+### Always
+- **Mandatory Testing & Coverage**: Any time code is changed such that results from running that code are changed, a test file must be changed as well, and **>= 90% code coverage is required** (verified via `just test`).
+- **Standard Library First**: Maintain minimal external dependencies. Prefer Go standard library primitives.
+
+### Never
+- Never commit compiled binaries or test artifacts to the repository.
+- Never use heredocs in scripts or commands.

@@ -1,0 +1,33 @@
+# {{.Name}} justfile
+
+# Default recipe: list available recipes
+default:
+    @just --list
+
+# Run all unit tests with race detector and coverage
+test:
+    go test -v -race -coverprofile=coverage.out ./...
+
+# Run static code analysis
+vet:
+    go vet ./...
+
+# Lint (alias for vet)
+lint: vet
+
+# Format Go code
+fmt:
+    go fmt ./...
+
+# Run module hygiene check
+tidy:
+    go mod tidy -diff
+
+# Run static analysis and test suite in sequence
+check:
+    go vet ./...
+    go test -v ./...
+
+# Clean temporary and test artifacts
+clean:
+    rm -rf bin dist coverage.out .tmp

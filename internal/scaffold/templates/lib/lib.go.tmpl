@@ -1,0 +1,32 @@
+package {{.PkgName}}
+
+// Client provides access to {{.Name}} capabilities.
+type Client struct {
+	name string
+}
+
+// Config holds configuration options for {{.Name}}.
+type Config struct {
+	Name string
+}
+
+// New creates a new {{.Name}} Client with default options.
+func New(configs ...Config) *Client {
+	name := "{{.Name}}"
+	if len(configs) > 0 && configs[0].Name != "" {
+		name = configs[0].Name
+	}
+	return &Client{
+		name: name,
+	}
+}
+
+// Status returns the operational status of the client.
+func (c *Client) Status() string {
+	return "ready"
+}
+
+// Name returns the client configured name.
+func (c *Client) Name() string {
+	return c.name
+}
