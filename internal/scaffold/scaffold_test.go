@@ -644,7 +644,7 @@ func TestInspect_EdgeCases(t *testing.T) {
 	customDir := filepath.Join(tmpDir, "custom")
 	_ = os.MkdirAll(filepath.Join(customDir, ".github", "workflows"), 0755)
 	_ = os.MkdirAll(filepath.Join(customDir, "internal", "custom"), 0755)
-	_ = os.WriteFile(filepath.Join(customDir, "go.mod"), []byte("module github.com/test/custom\n\ngo 1.26.2\n\nrequire github.com/alexgorbatchev/cobra-help-tree v1.1.0\n"), 0644)
+	_ = os.WriteFile(filepath.Join(customDir, "go.mod"), []byte("module github.com/test/custom\n\ngo 1.26.2\n\nrequire github.com/alexgorbatchev/cobra-help-tree/v2 v2.0.1\n"), 0644)
 	_ = os.WriteFile(filepath.Join(customDir, "Justfile"), []byte("default:\n"), 0644)
 	_ = os.WriteFile(filepath.Join(customDir, ".goreleaser.yaml"), []byte("version: 2\n"), 0644)
 	_ = os.WriteFile(filepath.Join(customDir, ".github", "workflows", "ci.yaml"), []byte("name: CI\n"), 0644)
