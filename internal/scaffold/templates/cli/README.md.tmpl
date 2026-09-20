@@ -25,22 +25,11 @@
 
 # Installation
 
-Download the latest prebuilt binary from GitHub Releases:
+Download the prebuilt binary for your platform from the [latest release](https://{{.Module}}/releases/latest).
 
 ```bash
-# Using GitHub CLI
-gh release download --repo {{.Module}} --pattern '{{.Binary}}_*_darwin_arm64.tar.gz'
-tar -xzf {{.Binary}}_*_darwin_arm64.tar.gz
-chmod +x {{.Binary}}
-mv {{.Binary}} ~/.local/bin/
-```
-
-Or via direct download:
-
-```bash
-curl -fsSL https://{{.Module}}/releases/latest/download/{{.Binary}}_darwin_arm64.tar.gz | tar -xz
-chmod +x {{.Binary}}
-mv {{.Binary}} ~/.local/bin/
+# macOS (Apple Silicon)
+curl -sSL https://{{.Module}}/releases/latest/download/{{.Binary}}_0.1.0_darwin_arm64.tar.gz | tar -xz -C ~/.local/bin
 ```
 
 # Quick Start

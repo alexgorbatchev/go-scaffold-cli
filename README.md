@@ -32,22 +32,11 @@ go-scaffold-cli is a command-line tool for bootstrapping, generating, and inspec
 
 # Installation
 
-Download the latest prebuilt binary from GitHub Releases:
+Download the prebuilt binary for your platform from the [latest release](https://github.com/alexgorbatchev/go-scaffold-cli/releases/latest).
 
 ```bash
-# Using GitHub CLI
-gh release download --repo alexgorbatchev/go-scaffold-cli --pattern 'go-scaffold_*_darwin_arm64.tar.gz'
-tar -xzf go-scaffold_*_darwin_arm64.tar.gz
-chmod +x go-scaffold
-mv go-scaffold ~/.local/bin/
-```
-
-Or via direct download:
-
-```bash
-curl -fsSL https://github.com/alexgorbatchev/go-scaffold-cli/releases/latest/download/go-scaffold_darwin_arm64.tar.gz | tar -xz
-chmod +x go-scaffold
-mv go-scaffold ~/.local/bin/
+# macOS (Apple Silicon)
+curl -sSL https://github.com/alexgorbatchev/go-scaffold-cli/releases/latest/download/go-scaffold_1.0.0_darwin_arm64.tar.gz | tar -xz -C ~/.local/bin
 ```
 
 # Quick Start
@@ -71,6 +60,11 @@ go-scaffold lib inspect ../godeps
 ```
 
 # Options & Flags
+
+| Flag | Short | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `--help` | `-h` | `false` | Display help and command tree |
+| `--version` | `-v` | `false` | Display binary version |
 
 ### `cli create` Flags
 
