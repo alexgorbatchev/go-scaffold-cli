@@ -1,7 +1,7 @@
 package main
 
 import (
-	cobrahelptree "github.com/alexgorbatchev/cobra-help-tree"
+	cobrahelptree "github.com/alexgorbatchev/cobra-help-tree/v2"
 	"github.com/spf13/cobra"
 )
 
@@ -17,12 +17,16 @@ var techCatalog = cobrahelptree.TechCatalog{
 	"go-scaffold cli create": {
 		Summary:     "Scaffold a new standardized Go CLI project",
 		Description: "Renders templates for Cobra CLI hierarchy, Justfile, GoReleaser, GitHub Actions, AGENT=1 dual mode, and offline tests.",
-		Args:        "[path]",
+		Args: []cobrahelptree.ArgSpec{
+			{Name: "[path]", Description: "Target directory to scaffold (defaults to current directory)"},
+		},
 	},
 	"go-scaffold cli inspect": {
 		Summary:     "Audit repository for CLI best practices and standards",
 		Description: "Checks for go.mod, justfile, .gitignore, .goreleaser.yml, workflows, AGENTS.md, README.md, LICENSE, and dual-mode support.",
-		Args:        "[path]",
+		Args: []cobrahelptree.ArgSpec{
+			{Name: "[path]", Description: "Target directory to inspect (defaults to current directory)"},
+		},
 	},
 	"go-scaffold lib": {
 		Summary:     "Library project scaffolding and compliance commands",
@@ -31,17 +35,21 @@ var techCatalog = cobrahelptree.TechCatalog{
 	"go-scaffold lib create": {
 		Summary:     "Scaffold a new standardized Go library project",
 		Description: "Renders templates for root Go package, table-driven unit tests, Justfile, CI workflows, and documentation.",
-		Args:        "[path]",
+		Args: []cobrahelptree.ArgSpec{
+			{Name: "[path]", Description: "Target directory to scaffold (defaults to current directory)"},
+		},
 	},
 	"go-scaffold lib inspect": {
 		Summary:     "Audit repository for Go library best practices and standards",
 		Description: "Checks for go.mod, justfile, .gitignore, CI workflow, LICENSE, README.md, AGENTS.md, root Go source, and tests.",
-		Args:        "[path]",
+		Args: []cobrahelptree.ArgSpec{
+			{Name: "[path]", Description: "Target directory to inspect (defaults to current directory)"},
+		},
 	},
 }
 
 func setupHelp(cmd *cobra.Command) {
-	cobrahelptree.Setup(cmd, cobrahelptree.TreeOptions{
-		TechCatalog: techCatalog,
+	_ = cobrahelptree.SetupWithOptions(cmd, cobrahelptree.HelpOptions{
+		Catalog: techCatalog,
 	})
 }

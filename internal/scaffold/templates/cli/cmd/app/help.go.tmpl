@@ -1,7 +1,7 @@
 package main
 
 import (
-	cobrahelptree "github.com/alexgorbatchev/cobra-help-tree"
+	cobrahelptree "github.com/alexgorbatchev/cobra-help-tree/v2"
 	"github.com/spf13/cobra"
 )
 
@@ -17,7 +17,7 @@ var techCatalog = cobrahelptree.TechCatalog{
 }
 
 func setupHelp(cmd *cobra.Command) {
-	cobrahelptree.Setup(cmd, cobrahelptree.TreeOptions{
-		TechCatalog: techCatalog,
+	_ = cobrahelptree.SetupWithOptions(cmd, cobrahelptree.HelpOptions{
+		Catalog: techCatalog,
 	})
 }
