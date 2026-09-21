@@ -51,5 +51,8 @@ var techCatalog = cobrahelptree.TechCatalog{
 func setupHelp(cmd *cobra.Command) {
 	_ = cobrahelptree.SetupWithOptions(cmd, cobrahelptree.HelpOptions{
 		Catalog: techCatalog,
+		Tree: cobrahelptree.TreeOptions{
+			HideGeneratedCommands: true,
+		},
 	})
 }

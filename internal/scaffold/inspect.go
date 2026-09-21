@@ -155,7 +155,7 @@ func Inspect(targetDir string, pType ProjectType) (*InspectResult, error) {
 		} else {
 			_ = filepath.Walk(filepath.Join(absDir, "internal"), func(p string, info os.FileInfo, err error) error {
 				if err == nil && !info.IsDir() && strings.HasSuffix(p, ".go") {
-					if d, err := os.ReadFile(p); err == nil && strings.Contains(string(d), `os.Getenv("AGENT")`) {
+					if d, err := os.ReadFile(p); err == nil && (strings.Contains(string(d), `os.Getenv("AGENT")`) || strings.Contains(string(d), "cobrahelptree.IsAgentMode()")) {
 						res.HasAgentMode = true
 					}
 				}
