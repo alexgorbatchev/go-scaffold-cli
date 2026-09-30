@@ -27,6 +27,7 @@ func newRootCommand() *cobra.Command {
 	rootCmd.SetVersionTemplate("{{ "{{" }}.Version{{ "}}" }}\n")
 
 	rootCmd.AddCommand(newStatusCommand())
+	rootCmd.AddCommand(newSkillCommand())
 
 	setupHelp(rootCmd)
 

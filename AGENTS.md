@@ -1,6 +1,6 @@
 ---
 created_on: 2026-08-25 14:00
-last_modified: 2026-08-25 15:30
+last_modified: 2026-09-30 14:33
 status: current
 ---
 
@@ -30,6 +30,7 @@ CLI utility to quickly scaffold and bootstrap standardized Go CLI (`cli`) and li
 - **Help Screens & Terminal Width:** CLI help output (`--help`) must display an aligned hierarchical tree view with `├─` and `╰─` glyphs powered by `github.com/alexgorbatchev/cobra-help-tree/v2` (`cobrahelptree.Setup(rootCmd)`), with command descriptions automatically trimmed to the terminal width using ellipsis (`...`).
 - **Agent Mode (`AGENT=1`):** When `AGENT=1` is set, output compact key-value pairs or bullets.
 - **External Templates:** All scaffolding templates reside as external files in `internal/scaffold/templates/` (`cli/` and `lib/`) and are embedded via `embed.FS`.
+- **Embedded CLI Skill:** CLI templates generate `cmd/<binary>/SKILL.md`, `skill.go`, and `skill_test.go`; `skill` prints the embedded guide verbatim, and every agent-mode help screen begins with its reading alert. Keep the guide and generated `AGENTS.md` maintenance instructions synchronized with the generated CLI. Cover template changes in `TestGenerate_ScaffoldedCLICompilesAndRuns`, including execution after removing the source guide.
 - **Hermetic Unit Tests:** All unit tests must remain 100% offline and hermetic.
 
 ## Boundaries

@@ -1,0 +1,104 @@
+---
+name: {{printf "%q" .Binary}}
+description: {{printf "%q" (printf "Use when operating the %s CLI." .Binary)}}
+author: {{printf "%q" .Author}}
+metadata:
+  created_on: {{.CreatedDate}}
+  last_modified: {{.CreatedDate}}
+  status: current
+---
+
+## Execution rules
+
+Read this entire skill before running operational commands. Set `AGENT=1`
+on every invocation, or export it for the session. Select commands and
+options from this reference. Read exit status as well as stdout; failures
+exit nonzero and print `ERR:` diagnostics to stderr in agent mode.
+
+Set `AGENT=0` or leave it unset for human output. Values `1`, `true`, and
+`yes` enable agent output, with case and surrounding whitespace ignored.
+Operational commands use the arguments and options documented below.
+
+## `{{.Binary}}`
+
+Invoke without a subcommand to print root help. All commands accept
+`--help` / `-h`; the root also accepts `--version` / `-v`.
+Agent help starts with an alert to read this skill. Root and operational
+commands accept no positional arguments. Require no credentials or
+network access for the commands below.
+
+| Flag | Short | Type | Default | Behavior |
+| --- | --- | --- | --- | --- |
+| `--help` | `-h` | `bool` | `false` | Print help for the selected command. |
+| `--version` | `-v` | `bool` | `false` | Print only the raw version and a newline. |
+
+## `{{.Binary}} skill`
+
+Print this embedded SKILL.md verbatim to stdout, including frontmatter,
+in both human and agent modes. Accept no command-specific flags or
+positional arguments. Work from any directory without repository files.
+Output-write failures return an error.
+
+## `{{.Binary}} status`
+
+Print `status: ready` and `version: VERSION` key-value lines in agent mode.
+In human mode, print `[OK] System status: ready` and `Version: VERSION`.
+Accept no positional arguments or command-specific flags. Report runtime
+readiness and the binary version; leave persistent state unchanged.
+
+## `{{.Binary}} help [command]`
+
+Print root help with no argument, or supply a space-separated command path,
+such as `{{.Binary}} help status`. Accept no command-specific flags.
+
+## `{{.Binary}} completion`
+
+Print completion group help with no verb. Use one of the four shell commands
+below to print a completion script to stdout. Accept no positional arguments
+or command-specific flags on the group. Redirect a script to a file to save it.
+
+## `{{.Binary}} completion bash`
+
+Print a Bash completion script. Accept no positional arguments. Load with
+`source <({{.Binary}} completion bash)` in Bash with `bash-completion` installed.
+
+| Flag | Short | Type | Default | Behavior |
+| --- | --- | --- | --- | --- |
+| `--no-descriptions` | — | `bool` | `false` | Omit completion descriptions. |
+
+## `{{.Binary}} completion zsh`
+
+Print a Zsh completion script. Accept no positional arguments. Enable
+completion with `autoload -U compinit; compinit`, then load with
+`source <({{.Binary}} completion zsh)`.
+
+| Flag | Short | Type | Default | Behavior |
+| --- | --- | --- | --- | --- |
+| `--no-descriptions` | — | `bool` | `false` | Omit completion descriptions. |
+
+## `{{.Binary}} completion fish`
+
+Print a Fish completion script. Accept no positional arguments. Load with
+`{{.Binary}} completion fish | source`.
+
+| Flag | Short | Type | Default | Behavior |
+| --- | --- | --- | --- | --- |
+| `--no-descriptions` | — | `bool` | `false` | Omit completion descriptions. |
+
+## `{{.Binary}} completion powershell`
+
+Print a PowerShell completion script. Accept no positional arguments. Load
+with `{{.Binary}} completion powershell | Out-String | Invoke-Expression`.
+
+| Flag | Short | Type | Default | Behavior |
+| --- | --- | --- | --- | --- |
+| `--no-descriptions` | — | `bool` | `false` | Omit completion descriptions. |
+
+## Workflow
+
+```sh
+export AGENT=1
+{{.Binary}} skill
+{{.Binary}} status
+{{.Binary}} --version
+```

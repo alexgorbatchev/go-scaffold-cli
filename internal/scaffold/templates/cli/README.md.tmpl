@@ -4,6 +4,7 @@
 
 - Provides fast and intuitive command-line workflows.
 - Supports dual-mode human-friendly and token-conservative agent output via `AGENT=1`.
+- Prints a complete embedded command and option guide with `{{.Binary}} skill`.
 - Offers structured subject-verb command hierarchies and aligned tree-view help screens.
 
 # How It Works
@@ -54,6 +55,9 @@ mv {{.Binary}} ~/.local/bin/
 
 # Run status check
 {{.Binary}} status
+
+# Read the complete guide before agent operations
+AGENT=1 {{.Binary}} skill
 ```
 
 # Options & Flags

@@ -7,6 +7,7 @@ go-scaffold-cli is a command-line tool for bootstrapping, generating, and inspec
 - Configures Cobra CLI structures with hierarchical tree-view help screens via [cobra-help-tree](https://github.com/alexgorbatchev/cobra-help-tree) for CLI projects.
 - Sets up standard Go library architecture with table-driven tests and race detection for library projects.
 - Embeds dual-mode execution support (`AGENT=1`) for AI agents and human users.
+- Generates a `skill` command with an embedded guide covering every starter command and option, an alert at the top of agent help, and instructions to keep the guide synchronized as the CLI grows.
 - Generates `justfile` automation recipes for running, testing, vetting, formatting, and building.
 - Sets up GitHub Actions CI/CD workflows and GoReleaser release configurations.
 - Audits and inspects existing Go CLI and library projects for compliance with project standards (`cli inspect`, `lib inspect`).

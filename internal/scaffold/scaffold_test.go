@@ -405,10 +405,12 @@ func TestGenerate_ScaffoldedCLICompilesAndRuns(t *testing.T) {
 	}
 
 	// Run go test
-	cmdTest := exec.Command("go", "test", "-v", "./...")
+	cmdTest := exec.Command("go", "test", "-v", "-race", "-coverprofile=coverage.out", "./...")
 	cmdTest.Dir = target
 	if out, err := cmdTest.CombinedOutput(); err != nil {
 		t.Fatalf("go test failed: %v\nOutput:\n%s", err, string(out))
+	} else {
+		t.Logf("generated CLI tests:\n%s", out)
 	}
 
 	// Run go build
@@ -448,6 +450,31 @@ func TestGenerate_ScaffoldedCLICompilesAndRuns(t *testing.T) {
 	}
 	if !strings.Contains(string(outAgent), "status: ready") {
 		t.Errorf("expected AGENT output 'status: ready', got:\n%s", string(outAgent))
+	}
+
+	cmdSkill := exec.Command(binPath, "skill")
+	outSkill, err := cmdSkill.CombinedOutput()
+	if err != nil {
+		t.Fatalf("running bin skill failed: %v\n%s", err, outSkill)
+	}
+	skillPath := filepath.Join(target, "cmd", "testapp", "SKILL.md")
+	wantSkill, err := os.ReadFile(skillPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(outSkill) != string(wantSkill) {
+		t.Fatal("compiled skill output differs from generated SKILL.md")
+	}
+	// An installed binary must work without its source guide or repository.
+	if err := os.Remove(skillPath); err != nil {
+		t.Fatal(err)
+	}
+	cmdSkill = exec.Command(binPath, "skill")
+	cmdSkill.Dir = t.TempDir()
+	cmdSkill.Env = append(os.Environ(), "AGENT=1")
+	outSkill, err = cmdSkill.CombinedOutput()
+	if err != nil || string(outSkill) != string(wantSkill) {
+		t.Fatalf("embedded skill failed outside repository: %v\n%s", err, outSkill)
 	}
 
 	// Inspect generated CLI project
