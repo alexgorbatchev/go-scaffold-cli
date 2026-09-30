@@ -9,17 +9,18 @@ status: current
 CLI utility to quickly scaffold and bootstrap standardized Go CLI (`cli`) and library (`lib`) projects adhering to Cobra command hierarchies, cobra-help-tree, dual-mode AGENT=1 execution, Justfile task automation, and GitHub Actions CI/CD workflows.
 
 ## Commands
-- **Build Local Binary:** `just build` (compiles to `bin/go-scaffold-cli`)
+- **Build Local Binary:** `just build` (compiles to `bin/go-scaffold`)
 - **Run CLI with Arguments:** `just run [args...]`
 - **Run CLI in Agent Mode:** `just run-ai [args...]` (`AGENT=1`)
 - **Run Tests:** `just test` (`go test -v ./...`)
 - **Run Static Analysis & Tests:** `just check` (`go vet ./... && go test -v ./...`)
 - **Run Linter / Static Analysis:** `just vet` or `just lint` (`go vet ./...`)
 - **Format Source Code:** `just fmt` (`go fmt ./...`)
-- **Scaffold New CLI Project:** `bin/go-scaffold-cli cli create [path] [--name <name>] [--module <mod>] [--binary <bin>]`
-- **Inspect CLI Repository:** `bin/go-scaffold-cli cli inspect [path]`
-- **Scaffold New Library Project:** `bin/go-scaffold-cli lib create [path] [--name <name>] [--pkg <pkg>] [--module <mod>]`
-- **Inspect Library Repository:** `bin/go-scaffold-cli lib inspect [path]`
+- **Print Embedded Agent Skill:** `bin/go-scaffold skill`
+- **Scaffold New CLI Project:** `bin/go-scaffold cli create [path] [--name <name>] [--module <mod>] [--binary <bin>]`
+- **Inspect CLI Repository:** `bin/go-scaffold cli inspect [path]`
+- **Scaffold New Library Project:** `bin/go-scaffold lib create [path] [--name <name>] [--pkg <pkg>] [--module <mod>]`
+- **Inspect Library Repository:** `bin/go-scaffold lib inspect [path]`
 
 ## Setup & Environment
 - **Prerequisites:** Go 1.26+, `just`.
@@ -30,7 +31,8 @@ CLI utility to quickly scaffold and bootstrap standardized Go CLI (`cli`) and li
 - **Help Screens & Terminal Width:** CLI help output (`--help`) must display an aligned hierarchical tree view with `├─` and `╰─` glyphs powered by `github.com/alexgorbatchev/cobra-help-tree/v2` (`cobrahelptree.Setup(rootCmd)`), with command descriptions automatically trimmed to the terminal width using ellipsis (`...`).
 - **Agent Mode (`AGENT=1`):** When `AGENT=1` is set, output compact key-value pairs or bullets.
 - **External Templates:** All scaffolding templates reside as external files in `internal/scaffold/templates/` (`cli/` and `lib/`) and are embedded via `embed.FS`.
-- **Embedded CLI Skill:** CLI templates generate `cmd/<binary>/SKILL.md`, `skill.go`, and `skill_test.go`; `skill` prints the embedded guide verbatim, and every agent-mode help screen begins with its reading alert. Keep the guide and generated `AGENTS.md` maintenance instructions synchronized with the generated CLI. Cover template changes in `TestGenerate_ScaffoldedCLICompilesAndRuns`, including execution after removing the source guide.
+- **Embedded CLI Skill:** `go-scaffold` ships a top-level `skill` command embedding `cmd/go-scaffold/SKILL.md`, and its agent-mode help screens start with its reading alert. CLI templates generate `cmd/<binary>/SKILL.md`, `skill.go`, and `skill_test.go` with the same contract. Keep the guide and generated `AGENTS.md` maintenance instructions synchronized with the generated CLI. Cover template changes in `TestGenerate_ScaffoldedCLICompilesAndRuns`, including execution after removing the source guide.
+- **Skill Maintenance:** Update `cmd/go-scaffold/SKILL.md` in the same change whenever any command, argument, option, default, environment variable, output format, or side effect changes. Verify documented behavior against the implementation and update `last_modified` metadata.
 - **Hermetic Unit Tests:** All unit tests must remain 100% offline and hermetic.
 
 ## Boundaries

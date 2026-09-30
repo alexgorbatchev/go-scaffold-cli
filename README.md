@@ -54,6 +54,9 @@ mv go-scaffold ~/.local/bin/
 # Quick Start
 
 ```bash
+# Print embedded agent skill guide
+go-scaffold skill
+
 # Scaffold a CLI project in the current directory (defaults name to cwd dirname)
 go-scaffold cli create
 

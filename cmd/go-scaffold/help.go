@@ -1,14 +1,22 @@
 package main
 
 import (
+	"fmt"
+
 	cobrahelptree "github.com/alexgorbatchev/cobra-help-tree/v2"
 	"github.com/spf13/cobra"
+
+	"github.com/alexgorbatchev/go-scaffold-cli/internal/agent"
 )
 
 var techCatalog = cobrahelptree.TechCatalog{
 	"go-scaffold": {
 		Summary:     "Go CLI and library scaffolding utility",
 		Description: "CLI utility to generate standardized Go CLI and library repositories with Justfile, CI/CD, and tests.",
+	},
+	"go-scaffold skill": {
+		Summary:     "Print the embedded SKILL.md usage guide for agents",
+		Description: "Outputs the complete embedded SKILL.md documentation including CLI contracts and operational examples.",
 	},
 	"go-scaffold cli": {
 		Summary:     "CLI application scaffolding and compliance commands",
@@ -51,5 +59,15 @@ var techCatalog = cobrahelptree.TechCatalog{
 func setupHelp(cmd *cobra.Command) {
 	_ = cobrahelptree.SetupWithOptions(cmd, cobrahelptree.HelpOptions{
 		Catalog: techCatalog,
+	})
+	help := cmd.HelpFunc()
+	cmd.SetHelpFunc(func(c *cobra.Command, args []string) {
+		if agent.IsAgentMode() {
+			if _, err := fmt.Fprintln(c.OutOrStdout(), "ALERT: Agents must read `AGENT=1 go-scaffold skill` before using this tool."); err != nil {
+				c.PrintErrln(err)
+				return
+			}
+		}
+		help(c, args)
 	})
 }
