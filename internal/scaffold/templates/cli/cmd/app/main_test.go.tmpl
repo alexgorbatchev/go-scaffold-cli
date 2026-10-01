@@ -17,6 +17,39 @@ func executeCommand(args ...string) (string, error) {
 	return buf.String(), err
 }
 
+func TestRun(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		mode string
+		args []string
+		code int
+		want string
+	}{
+		{"success", "0", []string{"--version"}, 0, version + "\n"},
+		{"human error", "0", []string{"unknown-command"}, 1, "[ERROR] unknown command"},
+		{"agent error", "1", []string{"unknown-command"}, 1, "ERR: unknown command"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("AGENT", tt.mode)
+			stdout, stderr := new(bytes.Buffer), new(bytes.Buffer)
+			cmd := newRootCommand()
+			cmd.SetArgs(tt.args)
+			cmd.SetOut(stdout)
+			cmd.SetErr(stderr)
+			if code := run(cmd); code != tt.code {
+				t.Fatalf("exit code = %d, want %d", code, tt.code)
+			}
+			if tt.code == 0 {
+				if stdout.String() != tt.want || stderr.Len() != 0 {
+					t.Fatalf("stdout = %q, stderr = %q", stdout, stderr)
+				}
+			} else if stdout.Len() != 0 || !strings.Contains(stderr.String(), tt.want) {
+				t.Fatalf("stdout = %q, stderr = %q", stdout, stderr)
+			}
+		})
+	}
+}
+
 func TestRootCommand_HelpAndVersion(t *testing.T) {
 	t.Setenv("AGENT", "0")
 	out, err := executeCommand("--help")

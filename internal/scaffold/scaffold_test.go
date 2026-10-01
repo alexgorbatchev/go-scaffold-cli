@@ -414,6 +414,8 @@ func TestGenerate_ScaffoldedCLICompilesAndRuns(t *testing.T) {
 	}
 
 	// Run go build
+	checkGeneratedCoverage(t, target)
+
 	cmdBuild := exec.Command("go", "build", "-o", filepath.Join("bin", "testapp"), "./cmd/testapp")
 	cmdBuild.Dir = target
 	if out, err := cmdBuild.CombinedOutput(); err != nil {
@@ -555,6 +557,8 @@ func TestGenerate_ScaffoldedLibCompilesAndRuns(t *testing.T) {
 	}
 
 	// Inspect generated Lib project
+	checkGeneratedCoverage(t, target)
+
 	inspectRes, err := Inspect(target, ProjectTypeLib)
 	if err != nil {
 		t.Fatalf("Inspect Lib failed: %v", err)
