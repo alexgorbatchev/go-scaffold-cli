@@ -146,8 +146,9 @@ The project name defaults to the directory name of the target path (or the curre
 				if relPath != "." {
 					fmt.Fprintf(cmd.OutOrStdout(), "  cd %s\n", relPath)
 				}
+				fmt.Fprintln(cmd.OutOrStdout(), "  just setup")
 				fmt.Fprintln(cmd.OutOrStdout(), "  just check")
-				fmt.Fprintf(cmd.OutOrStdout(), "  just run status\n")
+				fmt.Fprintln(cmd.OutOrStdout(), "  just run status")
 			}
 
 			return nil

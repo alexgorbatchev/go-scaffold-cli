@@ -1,6 +1,6 @@
 ---
 created_on: 2026-08-25 14:00
-last_modified: 2026-09-30 14:33
+last_modified: 2026-10-20 14:02
 status: current
 ---
 
@@ -10,6 +10,7 @@ CLI utility to quickly scaffold and bootstrap standardized Go CLI (`cli`) and li
 
 ## Commands
 - **Build Local Binary:** `just build` (compiles to `bin/go-scaffold`)
+- **Prepare Dependencies:** `just setup`
 - **Run CLI with Arguments:** `just run [args...]`
 - **Run CLI in Agent Mode:** `just run-ai [args...]` (`AGENT=1`)
 - **Run Tests:** `just test` (`go test -v ./...`)

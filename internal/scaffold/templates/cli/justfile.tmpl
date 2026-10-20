@@ -16,6 +16,10 @@ run-ai *args:
 test:
     go test -v ./...
 
+# Download project dependencies for local development
+setup:
+    go mod download
+
 # Build binary into bin/
 build:
     mkdir -p bin

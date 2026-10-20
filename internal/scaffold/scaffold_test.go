@@ -396,6 +396,13 @@ func TestGenerate_ScaffoldedCLICompilesAndRuns(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Generate failed: %v", err)
 	}
+	for _, args := range [][]string{{"setup"}, {"setup"}, {"run", "status"}} {
+		cmd := exec.Command("just", append([]string{"--justfile", "./justfile"}, args...)...)
+		cmd.Dir = target
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("generated project lifecycle %v failed: %v\n%s", args, err, out)
+		}
+	}
 
 	// Run go vet
 	cmdVet := exec.Command("go", "vet", "./...")

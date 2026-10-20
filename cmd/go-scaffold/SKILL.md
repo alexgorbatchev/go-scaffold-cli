@@ -4,7 +4,7 @@ description: "Use when operating the go-scaffold CLI."
 author: "Alex Gorbatchev"
 metadata:
   created_on: 2026-08-25
-  last_modified: 2026-09-30 16:30
+  last_modified: 2026-10-20 14:02
   status: current
 ---
 
@@ -60,6 +60,8 @@ repository structure with Cobra command hierarchies, cobra-help-tree,
 AGENT=1 dual-mode support, Justfile task automation, GitHub Actions CI/CD,
 GoReleaser configuration, embedded skill guide, and offline unit tests.
 Initializes a git repository and runs `go mod tidy` unless skipped.
+Run `just setup` in the generated project to prepare dependencies, then
+`just run status` to execute its CLI. Human output includes these next steps.
 Generated CI runs on pushes to `main` and pull requests targeting `main`,
 and requires at least 90% combined statement coverage across Go packages.
 
@@ -96,6 +98,7 @@ to the current directory if path is omitted. Generates root package source,
 table-driven unit tests with race detection, Justfile task automation,
 GitHub Actions CI workflows, and documentation. Initializes a git repository
 and runs `go mod tidy` unless skipped.
+Run `just setup` in the generated library before `just check` or `just test`.
 Generated CI runs on pushes to `main` and pull requests targeting `main`,
 and requires at least 90% combined statement coverage across Go packages.
 

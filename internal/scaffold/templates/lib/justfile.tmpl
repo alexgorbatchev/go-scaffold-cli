@@ -4,6 +4,10 @@
 default:
     @just --list
 
+# Download project dependencies for local development
+setup:
+    go mod download
+
 # Run all unit tests with race detector and coverage
 test:
     go test -v -race -coverprofile=coverage.out ./...
