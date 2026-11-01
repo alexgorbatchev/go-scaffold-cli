@@ -4,7 +4,7 @@ description: "Use when operating the go-scaffold CLI."
 author: "Alex Gorbatchev"
 metadata:
   created_on: 2026-08-25
-  last_modified: 2026-10-20 14:02
+  last_modified: 2026-11-01 12:40
   status: current
 ---
 
@@ -17,8 +17,10 @@ errors exit nonzero and print `ERR:` diagnostics to stderr in agent mode.
 For `cli create` and `lib create`, git initialization and `go mod tidy`
 errors are nonfatal: generated files remain, exit status is zero, and
 stdout includes `status: ok`, `warnings_count: <count>`, and one `warning:`
-line per error. Inspect these warnings before treating bootstrap as complete;
-do not infer successful git initialization or tidy from exit status alone.
+line per warning. `cli create` adds a warning when `--module` is not on
+`github.com`, naming the generated constant to correct. Inspect these warnings
+before treating bootstrap as complete; do not infer successful git
+initialization or tidy from exit status alone.
 
 Set `AGENT=0` or leave it unset for human output. Values `1`, `true`, and
 `yes` enable agent output, with case and surrounding whitespace ignored.
@@ -56,9 +58,13 @@ arguments. Print CLI command group help when invoked directly.
 
 Scaffold a new standardized Go CLI project at the target path. Defaults
 to the current directory if path is omitted. Generates a production-ready
-repository structure with Cobra command hierarchies, cobra-help-tree,
+repository structure with Cobra command hierarchies, cobra-help-tree v4,
 AGENT=1 dual-mode support, Justfile task automation, GitHub Actions CI/CD,
-GoReleaser configuration, embedded skill guide, and offline unit tests.
+GoReleaser configuration, a `skills/<binary>/SKILL.md` guide at the repository
+root, and offline unit tests. The generated `skill` command prints how to
+install that guide with the Skills CLI, and the binary does not embed it.
+The install instructions name the `owner/repo` of a `github.com` module path
+and the `main` branch. Any other module falls back to `<owner>/<name>`.
 Initializes a git repository and runs `go mod tidy` unless skipped.
 Run `just setup` in the generated project to prepare dependencies, then
 `just run status` to execute its CLI. Human output includes these next steps.
@@ -83,7 +89,8 @@ and requires at least 90% combined statement coverage across Go packages.
 Inspect and audit an existing Go CLI repository for compliance with best
 practices and standards. Checks for `go.mod`, `justfile`, `.gitignore`,
 `.goreleaser.yml`, GitHub Actions CI/CD workflows, `LICENSE`, `README.md`,
-`AGENTS.md`, `AGENT=1` dual-mode helper, and `cobra-help-tree` integration.
+`AGENTS.md`, `AGENT=1` dual-mode support in non-test Go source under `cmd/`
+or `internal/`, and `cobra-help-tree` integration.
 Defaults to the current working directory if path is omitted.
 
 ## `go-scaffold lib`

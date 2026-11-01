@@ -7,8 +7,8 @@ go-scaffold-cli is a command-line tool for bootstrapping, generating, and inspec
 - Configures Cobra CLI structures with hierarchical tree-view help screens via [cobra-help-tree](https://github.com/alexgorbatchev/cobra-help-tree) for CLI projects.
 - Sets up standard Go library architecture with table-driven tests and race detection for library projects.
 - Embeds dual-mode execution support (`AGENT=1`) for AI agents and human users.
-- Generates a `skill` command with an embedded guide covering every starter command and option, an alert at the top of agent help, and instructions to keep the guide synchronized as the CLI grows.
-- Generates `justfile` automation recipes for running, testing, vetting, formatting, and building.
+- Generates a `skills/<binary>/SKILL.md` guide covering every starter command and option, a `skill` command that prints how to install it, an alert at the top of agent help, and instructions to keep the guide synchronized as the CLI grows.
+- Generates `justfile` automation recipes for setup, running, testing, vetting, formatting, and building.
 - Sets up GitHub Actions CI/CD workflows and GoReleaser release configurations.
 - Audits and inspects existing Go CLI and library projects for compliance with project standards (`cli inspect`, `lib inspect`).
 
@@ -18,6 +18,7 @@ go-scaffold-cli is a command-line tool for bootstrapping, generating, and inspec
 - Populates Go module names, binary names, package identifiers, and author metadata automatically.
 - Initializes local git repositories and resolves Go module dependencies with `go mod tidy`.
 - Provides an inspection tool to verify existing repositories against CLI and library best practice standards.
+- Derives the skill's GitHub repository from a `github.com` module path. Any other `--module` falls back to `<owner>/<name>`, and agent output adds a warning naming the generated constant to correct.
 
 # How it Really Works
 

@@ -43,8 +43,8 @@ func TestRun(t *testing.T) {
 				if stdout.String() != tt.want || stderr.Len() != 0 {
 					t.Fatalf("stdout = %q, stderr = %q", stdout, stderr)
 				}
-			} else if stdout.Len() != 0 || !strings.Contains(stderr.String(), tt.want) {
-				t.Fatalf("stdout = %q, stderr = %q", stdout, stderr)
+			} else if stdout.Len() != 0 || !strings.HasPrefix(stderr.String(), tt.want) || strings.Count(stderr.String(), "unknown command") != 1 {
+				t.Fatalf("errors must print once: stdout = %q, stderr = %q", stdout, stderr)
 			}
 		})
 	}

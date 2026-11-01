@@ -1,6 +1,7 @@
 package scaffold
 
 import (
+	"bytes"
 	"errors"
 	"os"
 	"os/exec"
@@ -369,8 +370,103 @@ func TestGenerate_CLIAgentsRequiresWrappedHelp(t *testing.T) {
 	if !strings.Contains(string(agents), "wrapped to the terminal width and never truncated") {
 		t.Error("generated AGENTS.md must require wrapped help")
 	}
-	if strings.Contains(string(agents), "trimmed") {
-		t.Error("generated AGENTS.md must not require trimmed help")
+	for _, stale := range []string{"trimmed", "ellipsis", "cobra-help-tree/v2", "cobra-help-tree/v3", "go:embed", "cmd/demo/SKILL.md"} {
+		if strings.Contains(string(agents), stale) {
+			t.Errorf("generated AGENTS.md must not mention %q", stale)
+		}
+	}
+	for _, want := range []string{"cobra-help-tree/v4", "skills/demo/SKILL.md", "Update the skill in the same change as any"} {
+		if !strings.Contains(string(agents), want) {
+			t.Errorf("generated AGENTS.md must mention %q", want)
+		}
+	}
+}
+
+// stubGitHubOwner makes owner detection offline.
+func stubGitHubOwner(t *testing.T, owner string) {
+	t.Helper()
+	orig := runCommand
+	t.Cleanup(func() { runCommand = orig })
+	runCommand = func(string, ...string) ([]byte, error) {
+		return []byte(owner + "\n"), nil
+	}
+}
+
+func TestNormalizeRepository(t *testing.T) {
+	stubGitHubOwner(t, "acme")
+	tests := []struct {
+		name   string
+		module string
+		want   string
+	}{
+		{"repository root", "github.com/dj/demo-cli", "dj/demo-cli"},
+		{"major version suffix", "github.com/dj/demo-cli/v2", "dj/demo-cli"},
+		{"repository subdirectory", "github.com/dj/monorepo/tools/demo", "dj/monorepo"},
+		{"other host", "gitlab.com/dj/demo-cli", "acme/demo-cli"},
+		{"missing repository segment", "github.com/dj", "acme/demo-cli"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			opts := Options{Type: ProjectTypeCLI, Name: "demo-cli", Module: tt.module, Author: "Test Author"}
+			opts.Normalize()
+			if opts.Repository != tt.want {
+				t.Errorf("Repository = %q, want %q", opts.Repository, tt.want)
+			}
+		})
+	}
+
+	lib := Options{Type: ProjectTypeLib, Name: "demo", Module: "github.com/dj/demo", Author: "Test Author"}
+	lib.Normalize()
+	if lib.Repository != "" {
+		t.Errorf("library Repository = %q, want empty", lib.Repository)
+	}
+}
+
+func TestGenerate_CLIWarnsWhenModuleIsNotOnGitHub(t *testing.T) {
+	stubGitHubOwner(t, "acme")
+	tests := []struct {
+		module string
+		warn   bool
+	}{
+		{"github.com/dj/demo-cli", false},
+		{"gitlab.com/dj/demo-cli", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.module, func(t *testing.T) {
+			res, err := Generate(Options{
+				Type: ProjectTypeCLI, TargetDir: t.TempDir(), Name: "demo-cli", Binary: "demo",
+				Module: tt.module, Author: "Test Author", DryRun: true,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			warned := len(res.Warnings) == 1 && strings.Contains(res.Warnings[0], "cmd/demo/help.go")
+			if warned != tt.warn {
+				t.Errorf("warnings = %q, want warning %v", res.Warnings, tt.warn)
+			}
+		})
+	}
+}
+
+func TestGenerate_CLISkillLayout(t *testing.T) {
+	res, err := Generate(Options{
+		Type: ProjectTypeCLI, TargetDir: t.TempDir(), Name: "demo-cli", Binary: "custom-bin",
+		Module: "github.com/dj/demo-cli", Author: "Test Author", DryRun: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	files := make(map[string]bool, len(res.Files))
+	for _, f := range res.Files {
+		files[filepath.ToSlash(f)] = true
+	}
+	if !files["skills/custom-bin/SKILL.md"] {
+		t.Errorf("missing repository skill in %v", res.Files)
+	}
+	for _, f := range []string{"cmd/custom-bin/SKILL.md", "cmd/custom-bin/skill.go", "skills/app/SKILL.md", "internal/agent/agent.go"} {
+		if files[f] {
+			t.Errorf("generated %s", f)
+		}
 	}
 }
 
@@ -424,7 +520,7 @@ func TestGenerate_ScaffoldedCLICompilesAndRuns(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Generate failed: %v", err)
 	}
-	for _, args := range [][]string{{"setup"}, {"setup"}, {"run", "status"}} {
+	for _, args := range [][]string{{"setup"}, {"setup"}, {"run", "status"}, {"check"}} {
 		cmd := exec.Command("just", append([]string{"--justfile", "./justfile"}, args...)...)
 		cmd.Dir = target
 		if out, err := cmd.CombinedOutput(); err != nil {
@@ -489,29 +585,47 @@ func TestGenerate_ScaffoldedCLICompilesAndRuns(t *testing.T) {
 		t.Errorf("expected AGENT output 'status: ready', got:\n%s", string(outAgent))
 	}
 
-	cmdSkill := exec.Command(binPath, "skill")
-	outSkill, err := cmdSkill.CombinedOutput()
-	if err != nil {
-		t.Fatalf("running bin skill failed: %v\n%s", err, outSkill)
+	wantSkill := "Install the testapp skill using the Skills CLI:\n\n" +
+		"  npx skills add dj/testapp-cli --skill testapp\n\n" +
+		"Skill:\n\n" +
+		"  https://github.com/dj/testapp-cli/tree/main/skills/testapp\n"
+	for _, mode := range []string{"0", "1"} {
+		cmdSkill := exec.Command(binPath, "skill")
+		cmdSkill.Dir = t.TempDir() // An installed binary must work without its repository.
+		cmdSkill.Env = append(os.Environ(), "AGENT="+mode)
+		outSkill, err := cmdSkill.CombinedOutput()
+		if err != nil || string(outSkill) != wantSkill {
+			t.Fatalf("skill in AGENT=%s mode: %v\n%s", mode, err, outSkill)
+		}
 	}
-	skillPath := filepath.Join(target, "cmd", "testapp", "SKILL.md")
-	wantSkill, err := os.ReadFile(skillPath)
+	if _, err := os.Stat(filepath.Join(target, "skills", "testapp", "SKILL.md")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(target, "cmd", "testapp", "SKILL.md")); !os.IsNotExist(err) {
+		t.Fatalf("the skill must not live beside the binary source: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(target, "internal", "agent")); !os.IsNotExist(err) {
+		t.Fatalf("agent detection belongs to cobra-help-tree: %v", err)
+	}
+	goMod, err := os.ReadFile(filepath.Join(target, "go.mod"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(outSkill) != string(wantSkill) {
-		t.Fatal("compiled skill output differs from generated SKILL.md")
+	if !strings.Contains(string(goMod), "cobra-help-tree/v4 v4.0.0") {
+		t.Errorf("generated go.mod does not use cobra-help-tree v4:\n%s", goMod)
 	}
-	// An installed binary must work without its source guide or repository.
-	if err := os.Remove(skillPath); err != nil {
-		t.Fatal(err)
+
+	// Errors print once, from run, with Cobra's own printing silenced.
+	cmdBogus := exec.Command(binPath, "bogus")
+	cmdBogus.Env = append(os.Environ(), "AGENT=0")
+	var stdoutBogus, stderrBogus bytes.Buffer
+	cmdBogus.Stdout = &stdoutBogus
+	cmdBogus.Stderr = &stderrBogus
+	if err := cmdBogus.Run(); err == nil {
+		t.Fatal("expected unknown command to fail")
 	}
-	cmdSkill = exec.Command(binPath, "skill")
-	cmdSkill.Dir = t.TempDir()
-	cmdSkill.Env = append(os.Environ(), "AGENT=1")
-	outSkill, err = cmdSkill.CombinedOutput()
-	if err != nil || string(outSkill) != string(wantSkill) {
-		t.Fatalf("embedded skill failed outside repository: %v\n%s", err, outSkill)
+	if !strings.HasPrefix(stderrBogus.String(), "[ERROR] unknown command") || strings.Count(stderrBogus.String(), "unknown command") != 1 {
+		t.Errorf("errors must print once: stdout = %q, stderr = %q", stdoutBogus.String(), stderrBogus.String())
 	}
 
 	// Inspect generated CLI project
@@ -726,5 +840,46 @@ func Check() bool { return os.Getenv("AGENT") == "1" }
 	}
 	if !resCustom.HasJustfile || !resCustom.HasGoreleaser || !resCustom.HasCIWorkflow || !resCustom.HasReleaseWorkflow || !resCustom.HasAgentMode {
 		t.Errorf("Inspect failed to detect yaml alternatives: %+v", resCustom)
+	}
+}
+
+func TestInspect_AgentModeDetection(t *testing.T) {
+	const (
+		library = "package main\nvar agent = cobrahelptree.IsAgentMode()\n"
+		direct  = "package agent\nvar on = os.Getenv(\"AGENT\") == \"1\"\n"
+		other   = "package main\n"
+	)
+	tests := []struct {
+		name string
+		path string
+		body string
+		want bool
+	}{
+		{"library helper in cmd", "cmd/app/main.go", library, true},
+		{"library helper in internal", "internal/cli/mode.go", library, true},
+		{"direct read in internal", "internal/agent/agent.go", direct, true},
+		{"direct read in cmd", "cmd/app/mode.go", direct, true},
+		{"test file only", "cmd/app/main_test.go", library, false},
+		{"not Go source", "cmd/app/notes.txt", library, false},
+		{"no agent mode", "cmd/app/main.go", other, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, filepath.FromSlash(tt.path))
+			if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(path, []byte(tt.body), 0644); err != nil {
+				t.Fatal(err)
+			}
+			res, err := Inspect(dir, ProjectTypeCLI)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if res.HasAgentMode != tt.want {
+				t.Errorf("HasAgentMode = %v, want %v", res.HasAgentMode, tt.want)
+			}
+		})
 	}
 }

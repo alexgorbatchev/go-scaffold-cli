@@ -1,47 +1,32 @@
-{{.Name}} is a command-line tool for {{.Description}}.
+`{{.Binary}}`: {{.Description}}.
 
 # What It Does
 
-- Provides fast and intuitive command-line workflows.
-- Supports dual-mode human-friendly and token-conservative agent output via `AGENT=1`.
-- Prints a complete embedded command and option guide with `{{.Binary}} skill`.
-- Offers structured subject-verb command hierarchies and aligned tree-view help screens.
+- **Status checks:** Reports runtime readiness and the installed version with `{{.Binary}} status`.
+- **Agent output:** Prints compact, machine-readable output when `AGENT=1` is set.
+- **Agent skill:** Publishes a complete command and option guide that `{{.Binary}} skill` tells you how to install.
+- **Command tree help:** Shows every command and its subcommands in one wrapped, aligned help screen.
 
 # How It Works
 
-- Parses command-line flags and subcommands using [Cobra](https://github.com/spf13/cobra).
-- Formats visual tree hierarchies and status summaries for terminal users.
-- Adjusts verbosity and formatting automatically when invoked by automated AI agents.
+- Run `{{.Binary}} --help` to see the available commands.
+- Run a command such as `{{.Binary}} status` to get its result on stdout.
+- Set `AGENT=1` to switch every command to compact agent output.
 
 # How it Really Works
 
-- Detects the `AGENT` environment variable to switch between human TTY output and structured agent output.
-- Utilizes [cobra-help-tree](https://github.com/alexgorbatchev/cobra-help-tree) to render terminal-width-aware command tree listings.
-- Follows XDG Base Directory specifications for persistent data and configuration storage.
-
-# Prerequisites
-
-- [Go](https://go.dev/) {{.GoVersion}} or higher (for development)
-- [Just](https://github.com/casey/just) task runner (for project automation)
+- Values `1`, `true`, and `yes` for `AGENT` enable agent output, with case and surrounding whitespace ignored. Any other value keeps human output.
+- Help text wraps to the terminal width and is never cut off.
+- Results go to stdout, errors go to stderr, and failures exit with status 1.
+- `{{.Binary}} skill` works offline. The guide itself is published at [`skills/{{.Binary}}`](skills/{{.Binary}}/SKILL.md) in this repository, not bundled in the binary.
 
 # Installation
 
-Download the latest prebuilt binary from GitHub Releases:
+Download the prebuilt binary for your platform from the [latest release](https://github.com/{{.Repository}}/releases/latest), replacing `X.X.X` with the version shown on that page.
 
 ```bash
-# Using GitHub CLI
-gh release download --repo {{.Module}} --pattern '{{.Binary}}_*_darwin_arm64.tar.gz'
-tar -xzf {{.Binary}}_*_darwin_arm64.tar.gz
-chmod +x {{.Binary}}
-mv {{.Binary}} ~/.local/bin/
-```
-
-Or via direct download:
-
-```bash
-curl -fsSL https://{{.Module}}/releases/latest/download/{{.Binary}}_darwin_arm64.tar.gz | tar -xz
-chmod +x {{.Binary}}
-mv {{.Binary}} ~/.local/bin/
+# macOS (Apple Silicon)
+curl -sSL https://github.com/{{.Repository}}/releases/latest/download/{{.Binary}}_X.X.X_darwin_arm64.tar.gz | tar -xz -C ~/.local/bin
 ```
 
 # Quick Start
@@ -56,8 +41,16 @@ mv {{.Binary}} ~/.local/bin/
 # Run status check
 {{.Binary}} status
 
-# Read the complete guide before agent operations
-AGENT=1 {{.Binary}} skill
+# Show how to install the agent skill
+{{.Binary}} skill
+```
+
+Sample Output:
+
+```text
+$ {{.Binary}} status
+[OK] System status: ready
+Version: 0.1.0
 ```
 
 # Options & Flags
@@ -69,4 +62,4 @@ AGENT=1 {{.Binary}} skill
 
 # License
 
-MIT License. Copyright (c) {{.Year}} {{.Author}}.
+[MIT License](LICENSE). Copyright (c) {{.Year}} {{.Author}}.

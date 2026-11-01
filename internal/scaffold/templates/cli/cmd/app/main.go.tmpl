@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	cobrahelptree "github.com/alexgorbatchev/cobra-help-tree/v4"
 	"github.com/spf13/cobra"
-	"{{.Module}}/internal/agent"
 )
 
 func main() {
@@ -14,7 +14,7 @@ func main() {
 
 func run(cmd *cobra.Command) int {
 	if err := cmd.Execute(); err != nil {
-		if agent.IsAgentMode() {
+		if cobrahelptree.IsAgentMode() {
 			fmt.Fprintf(cmd.ErrOrStderr(), "ERR: %v\n", err)
 		} else {
 			fmt.Fprintf(cmd.ErrOrStderr(), "[ERROR] %v\n", err)

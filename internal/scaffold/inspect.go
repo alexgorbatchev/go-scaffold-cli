@@ -3,6 +3,7 @@ package scaffold
 import (
 	"bufio"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -29,6 +30,30 @@ type InspectResult struct {
 	HasGoTest          bool        `json:"has_go_test,omitempty"`
 	Issues             []string    `json:"issues"`
 	Score              float64     `json:"score"`
+}
+
+// usesAgentMode reports whether non-test Go source under cmd/ or internal/ reads
+// AGENT, directly or through cobrahelptree.IsAgentMode.
+func usesAgentMode(projectDir string) bool {
+	found := false
+	for _, root := range []string{"cmd", "internal"} {
+		// Unreadable paths count as source without the helper, so the walk has no error to report.
+		_ = filepath.WalkDir(filepath.Join(projectDir, root), func(p string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() || !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
+				return nil
+			}
+			data, err := os.ReadFile(p)
+			if err != nil {
+				return nil
+			}
+			if strings.Contains(string(data), `os.Getenv("AGENT")`) || strings.Contains(string(data), "cobrahelptree.IsAgentMode()") {
+				found = true
+				return fs.SkipAll
+			}
+			return nil
+		})
+	}
+	return found
 }
 
 // Inspect checks an existing directory against Go CLI or library project standards.
@@ -150,20 +175,10 @@ func Inspect(targetDir string, pType ProjectType) (*InspectResult, error) {
 			res.Issues = append(res.Issues, "missing .github/workflows/release.yml")
 		}
 
-		if _, err := os.Stat(filepath.Join(absDir, "internal", "agent", "agent.go")); err == nil {
+		if usesAgentMode(absDir) {
 			res.HasAgentMode = true
 		} else {
-			_ = filepath.Walk(filepath.Join(absDir, "internal"), func(p string, info os.FileInfo, err error) error {
-				if err == nil && !info.IsDir() && strings.HasSuffix(p, ".go") {
-					if d, err := os.ReadFile(p); err == nil && strings.Contains(string(d), `os.Getenv("AGENT")`) {
-						res.HasAgentMode = true
-					}
-				}
-				return nil
-			})
-			if !res.HasAgentMode {
-				res.Issues = append(res.Issues, "missing AGENT=1 dual-mode helper")
-			}
+			res.Issues = append(res.Issues, "missing AGENT=1 dual-mode helper")
 		}
 
 		totalChecks := 11.0

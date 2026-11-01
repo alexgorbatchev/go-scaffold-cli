@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 
+	cobrahelptree "github.com/alexgorbatchev/cobra-help-tree/v4"
 	"github.com/spf13/cobra"
-	"{{.Module}}/internal/agent"
 )
 
 var (
@@ -13,12 +13,13 @@ var (
 
 func newRootCommand() *cobra.Command {
 	rootCmd := &cobra.Command{
-		Use:          "{{.Binary}}",
-		Short:        "{{.Description}}",
-		Long:         "{{.Binary}} is a command-line tool designed for {{.Description}}.",
-		Version:      version,
-		SilenceUsage: true,
-		Args:         cobra.NoArgs,
+		Use:           "{{.Binary}}",
+		Short:         "{{.Description}}",
+		Long:          "{{.Description}}.",
+		Version:       version,
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		Args:          cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},
@@ -27,7 +28,6 @@ func newRootCommand() *cobra.Command {
 	rootCmd.SetVersionTemplate("{{ "{{" }}.Version{{ "}}" }}\n")
 
 	rootCmd.AddCommand(newStatusCommand())
-	rootCmd.AddCommand(newSkillCommand())
 
 	setupHelp(rootCmd)
 
@@ -41,7 +41,7 @@ func newStatusCommand() *cobra.Command {
 		Long:  "Inspects and outputs the current system and runtime status.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if agent.IsAgentMode() {
+			if cobrahelptree.IsAgentMode() {
 				fmt.Fprintln(cmd.OutOrStdout(), "status: ready")
 				fmt.Fprintln(cmd.OutOrStdout(), "version: "+version)
 				return nil

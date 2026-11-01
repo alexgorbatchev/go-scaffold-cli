@@ -3,23 +3,24 @@ package main
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	cobrahelptree "github.com/alexgorbatchev/cobra-help-tree/v4"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 )
 
-const skillAlert = "ALERT: Agents must read `AGENT=1 {{.Binary}} skill` before using this tool.\n"
+const (
+	skillAlert   = "ALERT: Agents must read `AGENT=1 {{.Binary}} skill` before using this tool.\n"
+	skillInstall = "Install the {{.Binary}} skill using the Skills CLI:\n\n" +
+		"  npx skills add {{.Repository}} --skill {{.Binary}}\n\n" +
+		"Skill:\n\n" +
+		"  https://github.com/{{.Repository}}/tree/main/skills/{{.Binary}}\n"
+)
 
 func TestSkillCommand(t *testing.T) {
-	want, err := os.ReadFile("SKILL.md")
-	if err != nil {
-		t.Fatal(err)
-	}
 	for _, mode := range []string{"0", "1"} {
 		t.Run(mode, func(t *testing.T) {
 			t.Setenv("AGENT", mode)
@@ -28,17 +29,16 @@ func TestSkillCommand(t *testing.T) {
 			if err != nil {
 				t.Fatalf("skill failed: %v", err)
 			}
-			if out != string(want) {
-				t.Fatal("skill output must match SKILL.md byte for byte")
+			if out != skillInstall {
+				t.Fatalf("skill output = %q, want %q", out, skillInstall)
 			}
 		})
 	}
 }
 
 func TestSkillCommandRejectsArguments(t *testing.T) {
-	out, err := executeCommand("skill", "extra")
-	if err == nil || !strings.Contains(err.Error(), "unknown command") {
-		t.Fatalf("expected Cobra argument rejection, got %v: %s", err, out)
+	if out, err := executeCommand("skill", "extra"); err == nil {
+		t.Fatalf("skill must reject arguments, got: %s", out)
 	}
 }
 
@@ -100,48 +100,41 @@ func TestHelpSkillAlert(t *testing.T) {
 	}
 }
 
+func TestHumanHelpHidesGeneratedCommands(t *testing.T) {
+	t.Setenv("AGENT", "0")
+	out, err := executeCommand("--help")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, generated := range []string{"completion", "skill"} {
+		if strings.Contains(out, generated) {
+			t.Errorf("human help lists %s:\n%s", generated, out)
+		}
+	}
+	if !strings.Contains(out, "status") {
+		t.Errorf("human help lost the status command:\n%s", out)
+	}
+}
+
 func TestSkillDocumentsCommandInterface(t *testing.T) {
 	out, err := executeCommand("skill")
 	if err != nil {
 		t.Fatal(err)
 	}
-	walkCommands(commandTree(t), func(cmd *cobra.Command) {
-		cmd.InitDefaultHelpFlag()
-		cmd.InitDefaultVersionFlag()
-		usage := cmd.Use
-		if cmd.Parent() != nil {
-			usage = cmd.Parent().CommandPath() + " " + usage
-		}
-		heading := "## `" + usage + "`\n"
-		_, section, ok := strings.Cut(out, heading)
-		if !ok {
-			t.Errorf("skill is missing command %s", usage)
-			return
-		}
-		section, _, _ = strings.Cut(section, "\n## ")
-		checkFlags := func(f *pflag.Flag) {
-			if f.Hidden {
-				return
-			}
-			if f.Name == "help" && cmd.Parent() != nil {
-				return // The shared help flag is documented once in the root section.
-			}
-			shorthand := "—"
-			if f.Shorthand != "" {
-				shorthand = "`-" + f.Shorthand + "`"
-			}
-			def := f.DefValue
-			if def == "" {
-				def = `""`
-			}
-			row := fmt.Sprintf("| `--%s` | %s | `%s` | `%s` |", f.Name, shorthand, f.Value.Type(), def)
-			if !strings.Contains(section, row) {
-				t.Errorf("%s skill is missing flag/type/default: %s", usage, row)
-			}
-		}
-		cmd.LocalNonPersistentFlags().VisitAll(checkFlags)
-		cmd.PersistentFlags().VisitAll(checkFlags)
-	})
+	_, skillPath, ok := strings.Cut(strings.TrimSpace(out), "/tree/"+skillBranch+"/")
+	if !ok {
+		t.Fatalf("skill output has no repository path: %s", out)
+	}
+	data, err := os.ReadFile(filepath.Join("..", "..", filepath.FromSlash(skillPath), "SKILL.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `name: "{{.Binary}}"`) {
+		t.Fatal("the skill's frontmatter name must equal the --skill value")
+	}
+	if omissions := cobrahelptree.SkillOmissions(newRootCommand(), techCatalog, string(data)); len(omissions) > 0 {
+		t.Fatalf("SKILL.md is missing:\n%s", strings.Join(omissions, "\n"))
+	}
 }
 
 func TestSkillOutputErrors(t *testing.T) {

@@ -51,7 +51,7 @@ func TestGenerate_CICoverageGate(t *testing.T) {
 			} else {
 				_, err := Generate(Options{
 					Type: kind, TargetDir: target, Name: "project", Binary: "project",
-					Module: "example.com/project", Author: "Test Author",
+					Module: "github.com/example/project", Author: "Test Author",
 				})
 				if err != nil {
 					t.Fatal(err)

@@ -34,10 +34,10 @@ network access for the commands below.
 
 ## `{{.Binary}} skill`
 
-Print this embedded SKILL.md verbatim to stdout, including frontmatter,
-in both human and agent modes. Accept no command-specific flags or
-positional arguments. Work from any directory without repository files.
-Output-write failures return an error.
+Print the Skills CLI install command and the URL of this skill to stdout,
+with identical output in human and agent modes. Accept no command-specific
+flags or positional arguments. Work from any directory without network access
+or repository files. Output-write failures return an error.
 
 ## `{{.Binary}} status`
 
@@ -98,7 +98,6 @@ with `{{.Binary}} completion powershell | Out-String | Invoke-Expression`.
 
 ```sh
 export AGENT=1
-{{.Binary}} skill
 {{.Binary}} status
 {{.Binary}} --version
 ```

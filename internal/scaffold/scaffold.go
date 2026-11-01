@@ -34,6 +34,7 @@ type Options struct {
 	Binary      string
 	PkgName     string
 	Module      string
+	Repository  string
 	Description string
 	Author      string
 	Year        int
@@ -142,6 +143,17 @@ func DetectAuthor() string {
 	return DetectUsername()
 }
 
+// githubRepository returns the "owner/repo" hosting a module path, or "" when
+// the module is not on github.com. Trailing segments name a subdirectory or
+// major version of that repository.
+func githubRepository(module string) string {
+	segments := strings.Split(module, "/")
+	if len(segments) < 3 || segments[0] != "github.com" || segments[1] == "" || segments[2] == "" {
+		return ""
+	}
+	return segments[1] + "/" + segments[2]
+}
+
 // DefaultOptions returns an Options struct populated with sensible defaults.
 func DefaultOptions(targetDir string, pType ProjectType) Options {
 	if targetDir == "" {
@@ -218,6 +230,13 @@ func (o *Options) Normalize() {
 		o.Module = "github.com/" + owner + "/" + o.Name
 	}
 
+	if o.Type == ProjectTypeCLI && o.Repository == "" {
+		o.Repository = githubRepository(o.Module)
+		if o.Repository == "" {
+			o.Repository = DetectGitHubOwner() + "/" + o.Name
+		}
+	}
+
 	if o.Author == "" {
 		o.Author = DetectAuthor()
 	}
@@ -258,6 +277,12 @@ func Generate(opts Options) (*Result, error) {
 		Warnings:    make([]string, 0),
 	}
 
+	if opts.Type == ProjectTypeCLI && githubRepository(opts.Module) == "" {
+		res.Warnings = append(res.Warnings, fmt.Sprintf(
+			"module %q is not on github.com: the skill command names %s, set skillRepository in cmd/%s/help.go if that is wrong",
+			opts.Module, opts.Repository, opts.Binary))
+	}
+
 	tmplRoot := filepath.Join("templates", string(opts.Type))
 
 	// Walk templates embed.FS for the given project type
@@ -281,11 +306,10 @@ func Generate(opts Options) (*Result, error) {
 		// Handle type-specific file renames
 		if opts.Type == ProjectTypeCLI {
 			slashPath := filepath.ToSlash(destRel)
-			if strings.HasPrefix(slashPath, "cmd/app/") {
-				subPath := strings.TrimPrefix(slashPath, "cmd/app/")
-				destRel = filepath.Join("cmd", opts.Binary, filepath.FromSlash(subPath))
-			} else if slashPath == "cmd/app" {
-				destRel = filepath.Join("cmd", opts.Binary)
+			for _, dir := range []string{"cmd", "skills"} {
+				if subPath, ok := strings.CutPrefix(slashPath, dir+"/app/"); ok {
+					destRel = filepath.Join(dir, opts.Binary, filepath.FromSlash(subPath))
+				}
 			}
 		} else if opts.Type == ProjectTypeLib {
 			if destRel == "lib.go" {
