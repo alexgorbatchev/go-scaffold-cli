@@ -20,6 +20,10 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+
       - name: Check module hygiene
         run: go mod tidy -diff
 
