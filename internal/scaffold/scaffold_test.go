@@ -346,6 +346,34 @@ func TestGenerate_CLIDryRun(t *testing.T) {
 	}
 }
 
+func TestGenerate_CLIAgentsRequiresWrappedHelp(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "demo-cli")
+
+	opts := Options{
+		Type:        ProjectTypeCLI,
+		TargetDir:   target,
+		Name:        "demo-cli",
+		Binary:      "demo",
+		Module:      "github.com/dj/demo-cli",
+		Description: "A demo CLI utility",
+	}
+
+	if _, err := Generate(opts); err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+
+	agents, err := os.ReadFile(filepath.Join(target, "AGENTS.md"))
+	if err != nil {
+		t.Fatalf("read generated AGENTS.md: %v", err)
+	}
+	if !strings.Contains(string(agents), "wrapped to the terminal width and never truncated") {
+		t.Error("generated AGENTS.md must require wrapped help")
+	}
+	if strings.Contains(string(agents), "trimmed") {
+		t.Error("generated AGENTS.md must not require trimmed help")
+	}
+}
+
 func TestGenerate_LibDryRun(t *testing.T) {
 	tmpDir := t.TempDir()
 	target := filepath.Join(tmpDir, "demo-lib")
