@@ -1,110 +1,113 @@
-go-scaffold-cli is a command-line tool for bootstrapping, generating, and inspecting standardized Go CLI and library repositories with [Cobra](https://github.com/spf13/cobra), [cobra-help-tree](https://github.com/alexgorbatchev/cobra-help-tree), dual-mode human/agent output, Justfile task automation, and GitHub Actions CI/CD.
+`go-scaffold` generates and audits standardized Go CLI and library repositories, so a new project starts with command help, dual human and agent output, task automation, tests, and release automation already wired together. It is for developers who start Go projects often and want each one to meet the same standards from the first commit.
 
 # What It Does
 
-- Quickly scaffolds production-ready Go CLI applications (`cli create`) and Go library packages (`lib create`).
-- Defaults project, binary, and package names intelligently from the current working directory or target directory.
-- Configures Cobra CLI structures with hierarchical tree-view help screens via [cobra-help-tree](https://github.com/alexgorbatchev/cobra-help-tree) for CLI projects.
-- Sets up standard Go library architecture with table-driven tests and race detection for library projects.
-- Embeds dual-mode execution support (`AGENT=1`) for AI agents and human users.
-- Generates a `skills/<binary>/SKILL.md` guide covering every starter command and option, a `skill` command that prints how to install it, an alert at the top of agent help, and instructions to keep the guide synchronized as the CLI grows.
-- Generates `justfile` automation recipes for setup, running, testing, vetting, formatting, and building.
-- Sets up GitHub Actions CI/CD workflows and GoReleaser release configurations.
-- Audits and inspects existing Go CLI and library projects for compliance with project standards (`cli inspect`, `lib inspect`).
+- **Scaffolds CLI projects** with `cli create`: a [Cobra](https://github.com/spf13/cobra) command tree with [cobra-help-tree](https://github.com/alexgorbatchev/cobra-help-tree) help, `AGENT=1` output, a `justfile`, GitHub Actions, GoReleaser, and offline tests.
+- **Scaffolds Go libraries** with `lib create`: a root package, table-driven tests, a `justfile`, and CI.
+- **Generates an agent skill** for each CLI: a `skills/<binary>/SKILL.md` guide, a `skill` command that prints how to install it, and an alert at the top of agent help.
+- **Fills in names for you** from the target directory, your GitHub account, and your git identity.
+- **Audits existing repositories** with `cli inspect` and `lib inspect`, scoring them against the same standards out of 10.
 
 # How It Works
 
-- Scaffolds a new project hierarchy using embedded external template files when invoked.
-- Populates Go module names, binary names, package identifiers, and author metadata automatically.
-- Initializes local git repositories and resolves Go module dependencies with `go mod tidy`.
-- Provides an inspection tool to verify existing repositories against CLI and library best practice standards.
-- Derives the skill's GitHub repository from a `github.com` module path. Any other `--module` falls back to `<owner>/<name>`, and agent output adds a warning naming the generated constant to correct.
+- Takes a target directory, defaulting to the current one, and derives the project, binary, package, and module names from it unless you pass your own.
+- Writes the project files, then initializes a git repository and resolves dependencies.
+- Prints the next commands to run, along with any warnings about what it could not finish.
+- For an existing repository, `inspect` reports which standard files and features are missing and gives a score.
 
 # How it Really Works
 
-- Uses Go's `embed.FS` to bundle templates for `cli` and `lib` archetypes (`go.mod`, `justfile`, `.goreleaser.yml`, GitHub Actions, Cobra entry points, library sources, and tests).
-- Renders templates with `text/template` into target directories, handling custom flags and overwrite safety checks.
-- Adheres to `AGENT=1` environment variable contracts to switch between human-formatted output and compact key-value agent output.
-- Employs [cobra-help-tree](https://github.com/alexgorbatchev/cobra-help-tree) for terminal-width-aware hierarchical tree help formatting.
-
-# Prerequisites
-
-- [Go](https://go.dev/) 1.26 or higher (for development)
-- [Just](https://github.com/casey/just) task runner (for task automation)
+- `create` refuses a non-empty target directory unless you pass `--force`, which overwrites any file it generates and leaves the rest alone.
+- The default module owner comes from `gh api user`, then the `github.user` and `user.username` git settings, then your system username. Passing `--module` skips the lookup.
+- The author comes from `--author`, then the `user.name` git setting, then your system user.
+- `git init` runs only when the target has no `.git`, and `go mod tidy` runs after the files are written. Failures from either are warnings: the files stay and the exit code is 0, so read the warnings before treating a project as ready.
+- The generated `skill` command names the `owner/repo` from a `github.com` module path. Any other module falls back to `<owner>/<name>`, and `create` warns and names the constant to correct.
+- A module below its repository root, such as `github.com/owner/repo/tools/demo`, gets its skill at the repository root, because that is the only place the Skills CLI looks. The target directory must end in `tools/demo`, so this is the one case where `create` writes outside the target. It skips `git init`, and warns that the generated workflows must move to the repository root to run.
+- `inspect` checks for files and dependencies and reads no build output, so a score of 10 means the pieces exist, not that they work.
+- With `AGENT=1`, output is compact key-value lines. Errors exit 1 and go to stderr in both modes.
 
 # Installation
 
-Download the latest prebuilt binary from GitHub Releases:
+Download the prebuilt binary for your platform from the [latest release](https://github.com/alexgorbatchev/go-scaffold-cli/releases/latest), replacing `X.X.X` with the version shown on that page.
 
 ```bash
-# Using GitHub CLI
-gh release download --repo alexgorbatchev/go-scaffold-cli --pattern 'go-scaffold_*_darwin_arm64.tar.gz'
-tar -xzf go-scaffold_*_darwin_arm64.tar.gz
-chmod +x go-scaffold
-mv go-scaffold ~/.local/bin/
+# macOS (Apple Silicon)
+curl -sSL https://github.com/alexgorbatchev/go-scaffold-cli/releases/latest/download/go-scaffold_X.X.X_darwin_arm64.tar.gz | tar -xz -C ~/.local/bin
 ```
 
-Or via direct download:
+# Setup
 
-```bash
-curl -fsSL https://github.com/alexgorbatchev/go-scaffold-cli/releases/latest/download/go-scaffold_darwin_arm64.tar.gz | tar -xz
-chmod +x go-scaffold
-mv go-scaffold ~/.local/bin/
-```
+- [Go](https://go.dev/dl/) - Required by `go mod tidy` after `create`. Skip it with `--no-tidy`.
+- [Git](https://git-scm.com/) - Required to initialize the repository after `create`. Skip it with `--no-git`.
+- [GitHub CLI](https://cli.github.com/) - Optional. `create` uses your logged-in account as the default module owner.
+- [just](https://github.com/casey/just) - Required to run the recipes in generated projects.
 
 # Quick Start
 
 ```bash
-# Print embedded agent skill guide
-go-scaffold skill
-
-# Scaffold a CLI project in the current directory (defaults name to cwd dirname)
+# Scaffold a CLI project in the current directory
 go-scaffold cli create
 
-# Scaffold a CLI project in a subfolder with custom name and module
+# Scaffold a CLI project in a new directory with a custom name and module
 go-scaffold cli create ./my-tool-cli --name my-tool-cli --module github.com/alexgorbatchev/my-tool-cli
 
-# Scaffold a Go library project in a subfolder
+# Scaffold a Go library
 go-scaffold lib create ./my-lib --name my-lib --pkg mylib
 
-# Preview files before writing to disk
+# Preview the files without writing them
 go-scaffold cli create ./my-tool-cli --dry-run
 
-# Inspect existing CLI or library repositories for standards compliance
+# Audit existing repositories
 go-scaffold cli inspect ./
-go-scaffold lib inspect ../godeps
+go-scaffold lib inspect ../my-lib
+
+# Print the agent usage guide
+go-scaffold skill
+```
+
+Sample Output:
+
+```
+[DRY-RUN] Created CLI project my-tool-cli (github.com/alexgorbatchev/my-tool-cli) in /home/dev/projects/my-tool-cli
+[DRY-RUN] Generated 15 files:
+  - .github/workflows/ci.yml
+  - .github/workflows/release.yml
+  - .gitignore
+  ...
 ```
 
 # Options & Flags
 
-### `cli create` Flags
+### `cli create`
 
 | Flag | Short | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `--name <name>` | `-n` | `cwd dirname` | Name of the CLI project |
-| `--binary <bin>` | `-b` | `<name> (without -cli)` | Executable binary name |
-| `--module <path>` | `-m` | `github.com/alexgorbatchev/<name>` | Go module path |
-| `--description <desc>` | `-d` | `A command-line tool...` | Short description for project documentation |
-| `--go-version <ver>` | | `1.26.2` | Go version declared in go.mod |
-| `--force` | `-f` | `false` | Overwrite files if target directory is not empty |
+| `--name <name>` | `-n` | target directory name | Name of the CLI project |
+| `--binary <bin>` | `-b` | `<name>` without `-cli` | Executable binary name |
+| `--module <path>` | `-m` | `github.com/<owner>/<name>` | Go module path |
+| `--description <desc>` | `-d` | `A command-line tool for <name>` | Short description for project documentation |
+| `--author <name>` | `-a` | git `user.name` or system user | Author name for the license and skill |
+| `--go-version <ver>` | | `1.26.2` | Go version declared in `go.mod` |
+| `--force` | `-f` | `false` | Overwrite files if the target directory is not empty |
 | `--dry-run` | | `false` | Preview generated files without writing to disk |
 | `--no-git` | | `false` | Skip git repository initialization |
-| `--no-tidy` | | `false` | Skip running go mod tidy |
+| `--no-tidy` | | `false` | Skip running `go mod tidy` |
 
-### `lib create` Flags
+### `lib create`
 
 | Flag | Short | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `--name <name>` | `-n` | `cwd dirname` | Name of the library project |
-| `--pkg <pkg>` | `-p` | `sanitized name` | Go package name |
-| `--module <path>` | `-m` | `github.com/alexgorbatchev/<name>` | Go module path |
-| `--description <desc>` | `-d` | `A Go library for...` | Short description for library documentation |
-| `--go-version <ver>` | | `1.26.2` | Go version declared in go.mod |
-| `--force` | `-f` | `false` | Overwrite files if target directory is not empty |
+| `--name <name>` | `-n` | target directory name | Name of the library project |
+| `--pkg <pkg>` | `-p` | sanitized `<name>` | Go package name |
+| `--module <path>` | `-m` | `github.com/<owner>/<name>` | Go module path |
+| `--description <desc>` | `-d` | `A Go library for <name>` | Short description for library documentation |
+| `--author <name>` | `-a` | git `user.name` or system user | Author name for the license |
+| `--go-version <ver>` | | `1.26.2` | Go version declared in `go.mod` |
+| `--force` | `-f` | `false` | Overwrite files if the target directory is not empty |
 | `--dry-run` | | `false` | Preview generated files without writing to disk |
 | `--no-git` | | `false` | Skip git repository initialization |
-| `--no-tidy` | | `false` | Skip running go mod tidy |
+| `--no-tidy` | | `false` | Skip running `go mod tidy` |
 
 # License
 
-MIT License. Copyright (c) 2026 Alex Gorbatchev.
+MIT License (c) 2026 Alex Gorbatchev
