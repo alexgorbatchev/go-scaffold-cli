@@ -20,6 +20,9 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
+      - name: Download modules
+        run: go mod download
+
       - name: Check module hygiene
         run: go mod tidy -diff
 

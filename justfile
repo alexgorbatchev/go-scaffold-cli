@@ -13,7 +13,7 @@ run-ai *args:
     AGENT=1 go run ./cmd/go-scaffold {{ args }}
 
 # Run test suite
-test:
+test: setup
     go test -v ./...
 
 # Build binary into bin/
@@ -37,7 +37,7 @@ fmt:
     go fmt ./...
 
 # Run static analysis and test suite in sequence
-check:
+check: setup
     go vet ./...
     go test -v ./...
 

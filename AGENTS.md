@@ -1,6 +1,6 @@
 ---
 created_on: 2026-08-25 14:00
-last_modified: 2026-11-01 12:40
+last_modified: 2026-11-01 14:23
 status: current
 ---
 
@@ -33,9 +33,9 @@ CLI utility to quickly scaffold and bootstrap standardized Go CLI (`cli`) and li
 - **Agent Mode (`AGENT=1`):** When `AGENT=1` is set, output compact key-value pairs or bullets.
 - **External Templates:** All scaffolding templates reside as external files in `internal/scaffold/templates/` (`cli/` and `lib/`) and are embedded via `embed.FS`.
 - **Embedded CLI Skill:** `go-scaffold` ships a top-level `skill` command embedding `cmd/go-scaffold/SKILL.md`, and its agent-mode help screens start with its reading alert.
-- **Generated CLI Skill:** CLI templates generate `skills/<binary>/SKILL.md` at the project root and never embed it. Generated help uses `cobra-help-tree/v4` through `HelpOptions.Skill` and `TreeOptions.HideGeneratedCommands`, generated code calls `cobrahelptree.IsAgentMode`, and generated tests use `cobrahelptree.SkillOmissions`. `Options.Repository` supplies the `SkillSource` repository, derived from the module path. Keep the guide and generated `AGENTS.md` maintenance instructions synchronized with the generated CLI. Cover template changes in `TestGenerate_ScaffoldedCLICompilesAndRuns`, including `skill` execution outside the repository.
+- **Generated CLI Skill:** CLI templates generate `skills/<binary>/SKILL.md` at the project root and never embed it. Generated help uses `cobra-help-tree/v4` through `HelpOptions.Skill` and `TreeOptions.HideGeneratedCommands`, generated code calls `cobrahelptree.IsAgentMode`, and generated tests use `cobrahelptree.SkillOmissions`. `Options.Repository` supplies the `SkillSource` repository, derived from the module path. For a module in a repository subdirectory, `Options.RepositoryRoot` places the skill at the repository root, and `Generate` rejects a target directory that does not end in that subdirectory. Keep the guide and generated `AGENTS.md` maintenance instructions synchronized with the generated CLI. Cover template changes in `TestGenerate_ScaffoldedCLICompilesAndRuns`, including `skill` execution outside the repository.
 - **Skill Maintenance:** Update `cmd/go-scaffold/SKILL.md` in the same change whenever any command, argument, option, default, environment variable, output format, or side effect changes. Verify documented behavior against the implementation and update `last_modified` metadata.
-- **Hermetic Unit Tests:** All unit tests must remain 100% offline and hermetic.
+- **Hermetic Unit Tests:** All unit tests must remain 100% offline and hermetic. Each test package runs through `hermetic.Run` in `TestMain`, which stubs `gh` and turns off `GOPROXY` and `GOSUMDB`, so tests that run `go mod tidy` read only the local module cache. Run `just setup` before testing, and add the same `TestMain` to any new test package that generates a project.
 
 ## Boundaries
 - **Always:** Maintain >= 90% statement code coverage across Go packages.
