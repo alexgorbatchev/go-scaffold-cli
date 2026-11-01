@@ -3,7 +3,7 @@ module github.com/alexgorbatchev/go-scaffold-cli
 go 1.26.2
 
 require (
-	github.com/alexgorbatchev/cobra-help-tree/v2 v2.0.1
+	github.com/alexgorbatchev/cobra-help-tree/v4 v4.0.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.9
 )

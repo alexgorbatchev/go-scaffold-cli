@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	cobrahelptree "github.com/alexgorbatchev/cobra-help-tree/v2"
+	cobrahelptree "github.com/alexgorbatchev/cobra-help-tree/v4"
 	"github.com/spf13/cobra"
 
 	"github.com/alexgorbatchev/go-scaffold-cli/internal/agent"

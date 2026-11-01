@@ -29,6 +29,10 @@ jobs:
       - name: Vet
         run: go vet ./...
 
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+
       - name: Test
         run: go test ./...
 

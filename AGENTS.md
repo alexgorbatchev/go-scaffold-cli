@@ -29,7 +29,7 @@ CLI utility to quickly scaffold and bootstrap standardized Go CLI (`cli`) and li
 
 ## Conventions
 - **Output Formatting & No Decorative Headers:** All CLI output must be plain text without emojis across all modes.
-- **Help Screens & Terminal Width:** CLI help output (`--help`) must display an aligned hierarchical tree view with `├─` and `╰─` glyphs powered by `github.com/alexgorbatchev/cobra-help-tree/v2` (`cobrahelptree.Setup(rootCmd)`), with long help text wrapped to the terminal width and never truncated.
+- **Help Screens & Terminal Width:** CLI help output (`--help`) must display an aligned hierarchical tree view with `├─` and `╰─` glyphs powered by `github.com/alexgorbatchev/cobra-help-tree/v4` (`cobrahelptree.Setup(rootCmd)`), with long help text wrapped to the terminal width and never truncated.
 - **Agent Mode (`AGENT=1`):** When `AGENT=1` is set, output compact key-value pairs or bullets.
 - **External Templates:** All scaffolding templates reside as external files in `internal/scaffold/templates/` (`cli/` and `lib/`) and are embedded via `embed.FS`.
 - **Embedded CLI Skill:** `go-scaffold` ships a top-level `skill` command embedding `cmd/go-scaffold/SKILL.md`, and its agent-mode help screens start with its reading alert.
