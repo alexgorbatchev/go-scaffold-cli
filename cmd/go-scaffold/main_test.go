@@ -424,3 +424,66 @@ func TestInspectCommand_EmptyWithIssues(t *testing.T) {
 		t.Error("expected error for nonexistent inspect path in lib")
 	}
 }
+
+func TestRun(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		mode string
+		args []string
+		code int
+		want string
+	}{
+		{"success", "0", []string{"--help"}, 0, ""},
+		{"human error", "0", []string{"bogus"}, 1, "[ERROR] unknown command"},
+		{"agent error", "1", []string{"bogus"}, 1, "ERR: unknown command"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("AGENT", tt.mode)
+			stdout, stderr := new(bytes.Buffer), new(bytes.Buffer)
+			cmd := newRootCommand()
+			cmd.SetOut(stdout)
+			cmd.SetErr(stderr)
+			cmd.SetArgs(tt.args)
+			if code := run(cmd); code != tt.code {
+				t.Fatalf("exit code = %d, want %d", code, tt.code)
+			}
+			if !strings.HasPrefix(stderr.String(), tt.want) {
+				t.Fatalf("stderr = %q, want prefix %q", stderr, tt.want)
+			}
+		})
+	}
+}
+
+func TestCreateCommands_ReportWarnings(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		mode string
+		args []string
+		want []string
+	}{
+		{"human foreign module", "0", []string{"cli", "create", "--module", "gitlab.com/dj/demo-cli", "--dry-run"},
+			[]string{`[WARN] module "gitlab.com/dj/demo-cli" is not on github.com`}},
+		{"agent foreign module", "1", []string{"cli", "create", "--module", "gitlab.com/dj/demo-cli", "--dry-run"},
+			[]string{"warnings_count: 1\n", `warning: module "gitlab.com/dj/demo-cli" is not on github.com`}},
+		{"human cli tidy failure", "0", []string{"cli", "create", "--module", "github.com/dj/demo-cli", "--go-version", "bogus", "--no-git"},
+			[]string{"[WARN] go mod tidy failed"}},
+		{"human lib tidy failure", "0", []string{"lib", "create", "--module", "github.com/dj/demo", "--go-version", "bogus", "--no-git"},
+			[]string{"[WARN] go mod tidy failed"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("AGENT", tt.mode)
+			out, err := executeCommand(append(tt.args, filepath.Join(t.TempDir(), "demo-cli"))...)
+			if err != nil {
+				t.Fatalf("create failed: %v\n%s", err, out)
+			}
+			for _, want := range tt.want {
+				if !strings.Contains(out, want) {
+					t.Errorf("output lacks %q:\n%s", want, out)
+				}
+			}
+			if strings.Contains(out, "[OK] Ran go mod tidy") && strings.Contains(out, "go mod tidy failed") {
+				t.Errorf("reported tidy as both failed and finished:\n%s", out)
+			}
+		})
+	}
+}

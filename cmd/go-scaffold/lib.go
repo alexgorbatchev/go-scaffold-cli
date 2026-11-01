@@ -120,22 +120,9 @@ The project name defaults to the directory name of the target path (or the curre
 				fmt.Fprintf(cmd.OutOrStdout(), "  - %s\n", f)
 			}
 
-			if !res.DryRun {
-				if opts.InitGit {
-					if res.GitError != nil {
-						fmt.Fprintf(cmd.OutOrStdout(), "[WARN] git init skipped: %v\n", res.GitError)
-					} else {
-						fmt.Fprintln(cmd.OutOrStdout(), "[OK] Initialized git repository")
-					}
-				}
-				if opts.RunTidy {
-					if res.TidyError != nil {
-						fmt.Fprintf(cmd.OutOrStdout(), "[WARN] go mod tidy skipped: %v\n", res.TidyError)
-					} else {
-						fmt.Fprintln(cmd.OutOrStdout(), "[OK] Ran go mod tidy")
-					}
-				}
+			printSetupResult(cmd.OutOrStdout(), res)
 
+			if !res.DryRun {
 				relPath, err := filepath.Rel(".", res.ProjectDir)
 				if err != nil || relPath == "" {
 					relPath = res.ProjectDir

@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -28,22 +29,24 @@ const (
 
 // Options holds parameters for scaffolding a new Go CLI or library project.
 type Options struct {
-	Type        ProjectType
-	TargetDir   string
-	Name        string
-	Binary      string
-	PkgName     string
-	Module      string
-	Repository  string
-	Description string
-	Author      string
-	Year        int
-	GoVersion   string
-	CreatedDate string
-	Force       bool
-	DryRun      bool
-	InitGit     bool
-	RunTidy     bool
+	Type       ProjectType
+	TargetDir  string
+	Name       string
+	Binary     string
+	PkgName    string
+	Module     string
+	Repository string
+	// RepositoryRoot is the slash path from the project to its repository root.
+	RepositoryRoot string
+	Description    string
+	Author         string
+	Year           int
+	GoVersion      string
+	CreatedDate    string
+	Force          bool
+	DryRun         bool
+	InitGit        bool
+	RunTidy        bool
 }
 
 // Result describes the outcome of a scaffolding generation.
@@ -58,10 +61,16 @@ type Result struct {
 	DryRun      bool
 	GitError    error
 	TidyError   error
-	Warnings    []string
+	// GitInitialized and TidyCompleted report setup steps that ran and succeeded.
+	GitInitialized bool
+	TidyCompleted  bool
+	Warnings       []string
 }
 
-var nonAlphanumericRegex = regexp.MustCompile(`[^a-zA-Z0-9]`)
+var (
+	nonAlphanumericRegex = regexp.MustCompile(`[^a-zA-Z0-9]`)
+	majorVersionRegex    = regexp.MustCompile(`^v([2-9]|[1-9][0-9]+)$`)
+)
 
 var (
 	lookupUserCurrent = user.Current
@@ -154,6 +163,48 @@ func githubRepository(module string) string {
 	return segments[1] + "/" + segments[2]
 }
 
+// moduleSubdirectory returns the slash path a github.com module occupies inside
+// its repository, or "" at the repository root. A trailing major version names a
+// release line rather than a directory.
+func moduleSubdirectory(module string) string {
+	segments := strings.Split(module, "/")
+	if githubRepository(module) == "" || len(segments) == 3 {
+		return ""
+	}
+	segments = segments[3:]
+	if majorVersionRegex.MatchString(segments[len(segments)-1]) {
+		segments = segments[:len(segments)-1]
+	}
+	return strings.Join(segments, "/")
+}
+
+// repositoryRoot returns the slash path from a module subdirectory to the
+// repository root.
+func repositoryRoot(subdirectory string) string {
+	if subdirectory == "" {
+		return "."
+	}
+	return path.Join(strings.Repeat("../", strings.Count(subdirectory, "/")+1))
+}
+
+// checkRepositoryLayout rejects a CLI target that cannot reach the repository
+// root its module names. The skill lives at that root, so a mismatched target
+// would write it to an unrelated directory.
+func checkRepositoryLayout(opts Options) error {
+	subdirectory := moduleSubdirectory(opts.Module)
+	if opts.Type != ProjectTypeCLI || subdirectory == "" {
+		return nil
+	}
+	if !strings.HasSuffix(filepath.ToSlash(opts.TargetDir), "/"+subdirectory) {
+		return fmt.Errorf("module %q is in %q of its repository: the target directory must end in that path", opts.Module, subdirectory)
+	}
+	skill := filepath.Join(opts.TargetDir, filepath.FromSlash(opts.RepositoryRoot), "skills", opts.Binary, "SKILL.md")
+	if _, err := os.Stat(skill); err == nil && !opts.Force && !opts.DryRun {
+		return fmt.Errorf("skill %q already exists (use --force to overwrite)", skill)
+	}
+	return nil
+}
+
 // DefaultOptions returns an Options struct populated with sensible defaults.
 func DefaultOptions(targetDir string, pType ProjectType) Options {
 	if targetDir == "" {
@@ -237,6 +288,10 @@ func (o *Options) Normalize() {
 		}
 	}
 
+	if o.Type == ProjectTypeCLI {
+		o.RepositoryRoot = repositoryRoot(moduleSubdirectory(o.Module))
+	}
+
 	if o.Author == "" {
 		o.Author = DetectAuthor()
 	}
@@ -257,6 +312,10 @@ func (o *Options) Normalize() {
 // Generate renders and writes all scaffolding files for a Go project.
 func Generate(opts Options) (*Result, error) {
 	opts.Normalize()
+
+	if err := checkRepositoryLayout(opts); err != nil {
+		return nil, err
+	}
 
 	if !opts.DryRun {
 		// Check target directory
@@ -282,6 +341,11 @@ func Generate(opts Options) (*Result, error) {
 			"module %q is not on github.com: the skill command names %s, set skillRepository in cmd/%s/help.go if that is wrong",
 			opts.Module, opts.Repository, opts.Binary))
 	}
+	subdirectory := moduleSubdirectory(opts.Module)
+	if opts.Type == ProjectTypeCLI && subdirectory != "" {
+		res.Warnings = append(res.Warnings, fmt.Sprintf(
+			"module is in repository subdirectory %q: GitHub runs workflows only from the repository root, so move .github/workflows there", subdirectory))
+	}
 
 	tmplRoot := filepath.Join("templates", string(opts.Type))
 
@@ -306,10 +370,10 @@ func Generate(opts Options) (*Result, error) {
 		// Handle type-specific file renames
 		if opts.Type == ProjectTypeCLI {
 			slashPath := filepath.ToSlash(destRel)
-			for _, dir := range []string{"cmd", "skills"} {
-				if subPath, ok := strings.CutPrefix(slashPath, dir+"/app/"); ok {
-					destRel = filepath.Join(dir, opts.Binary, filepath.FromSlash(subPath))
-				}
+			if subPath, ok := strings.CutPrefix(slashPath, "cmd/app/"); ok {
+				destRel = filepath.Join("cmd", opts.Binary, filepath.FromSlash(subPath))
+			} else if subPath, ok := strings.CutPrefix(slashPath, "skills/app/"); ok {
+				destRel = filepath.Join(filepath.FromSlash(opts.RepositoryRoot), "skills", opts.Binary, filepath.FromSlash(subPath))
 			}
 		} else if opts.Type == ProjectTypeLib {
 			if destRel == "lib.go" {
@@ -355,8 +419,9 @@ func Generate(opts Options) (*Result, error) {
 	}
 
 	if !opts.DryRun {
-		// Initialize git if requested and .git does not exist
-		if opts.InitGit {
+		// Initialize git if requested, .git does not exist, and the module is not
+		// already inside a repository
+		if opts.InitGit && subdirectory == "" {
 			gitDir := filepath.Join(opts.TargetDir, ".git")
 			if _, err := os.Stat(gitDir); os.IsNotExist(err) {
 				gitCmd := exec.Command("git", "init")
@@ -364,6 +429,8 @@ func Generate(opts Options) (*Result, error) {
 				if out, err := gitCmd.CombinedOutput(); err != nil {
 					res.GitError = fmt.Errorf("git init failed: %w (output: %s)", err, strings.TrimSpace(string(out)))
 					res.Warnings = append(res.Warnings, res.GitError.Error())
+				} else {
+					res.GitInitialized = true
 				}
 			}
 		}
@@ -375,6 +442,8 @@ func Generate(opts Options) (*Result, error) {
 			if out, err := tidyCmd.CombinedOutput(); err != nil {
 				res.TidyError = fmt.Errorf("go mod tidy failed: %w (output: %s)", err, strings.TrimSpace(string(out)))
 				res.Warnings = append(res.Warnings, res.TidyError.Error())
+			} else {
+				res.TidyCompleted = true
 			}
 		}
 	}

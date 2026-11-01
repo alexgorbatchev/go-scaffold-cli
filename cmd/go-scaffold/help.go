@@ -56,15 +56,22 @@ var techCatalog = cobrahelptree.TechCatalog{
 	},
 }
 
+// helpWriteError keeps a failed help write for run, because cobra's help
+// function cannot return an error.
+var helpWriteError error
+
 func setupHelp(cmd *cobra.Command) {
-	_ = cobrahelptree.SetupWithOptions(cmd, cobrahelptree.HelpOptions{
+	cobra.CheckErr(cobrahelptree.SetupWithOptions(cmd, cobrahelptree.HelpOptions{
 		Catalog: techCatalog,
-	})
+		OnHelpWriteError: func(_ *cobra.Command, err error) {
+			helpWriteError = err
+		},
+	}))
 	help := cmd.HelpFunc()
 	cmd.SetHelpFunc(func(c *cobra.Command, args []string) {
 		if agent.IsAgentMode() {
 			if _, err := fmt.Fprintln(c.OutOrStdout(), "ALERT: Agents must read `AGENT=1 go-scaffold skill` before using this tool."); err != nil {
-				c.PrintErrln(err)
+				helpWriteError = err
 				return
 			}
 		}

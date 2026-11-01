@@ -21,10 +21,17 @@ var techCatalog = cobrahelptree.TechCatalog{
 	},
 }
 
+// helpWriteError keeps a failed help write for run, because cobra's help
+// function cannot return an error.
+var helpWriteError error
+
 func setupHelp(cmd *cobra.Command) {
 	cobra.CheckErr(cobrahelptree.SetupWithOptions(cmd, cobrahelptree.HelpOptions{
 		Catalog: techCatalog,
 		Skill:   cobrahelptree.SkillSource{Repository: skillRepository, Branch: skillBranch},
 		Tree:    cobrahelptree.TreeOptions{HideGeneratedCommands: true},
+		OnHelpWriteError: func(_ *cobra.Command, err error) {
+			helpWriteError = err
+		},
 	}))
 }

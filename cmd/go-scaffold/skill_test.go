@@ -163,13 +163,18 @@ func TestSkillOutputErrors(t *testing.T) {
 			cmd.SetOut(f)
 			cmd.SetErr(stderr)
 			cmd.SetArgs(args)
-			err = cmd.Execute()
 			if args[0] == "skill" {
-				if !errors.Is(err, os.ErrClosed) {
+				if err := cmd.Execute(); !errors.Is(err, os.ErrClosed) {
 					t.Fatalf("expected closed output error, got %v", err)
 				}
-			} else if !strings.Contains(stderr.String(), "file already closed") {
-				t.Fatalf("expected help output error on stderr, got %q", stderr.String())
+				return
+			}
+			t.Cleanup(func() { helpWriteError = nil })
+			if code := run(cmd); code != 1 {
+				t.Fatalf("exit code = %d, want 1", code)
+			}
+			if !strings.HasPrefix(stderr.String(), "ERR: ") || strings.Count(stderr.String(), "file already closed") != 1 {
+				t.Fatalf("expected one help output error on stderr, got %q", stderr.String())
 			}
 		})
 	}

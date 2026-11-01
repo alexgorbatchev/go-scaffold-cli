@@ -883,3 +883,121 @@ func TestInspect_AgentModeDetection(t *testing.T) {
 		})
 	}
 }
+
+func TestNormalizeRepositoryRoot(t *testing.T) {
+	tests := []struct {
+		module string
+		want   string
+	}{
+		{"github.com/dj/demo-cli", "."},
+		{"github.com/dj/demo-cli/v2", "."},
+		{"github.com/dj/demo-cli/v10", "."},
+		{"github.com/dj/monorepo/demo", ".."},
+		{"github.com/dj/monorepo/tools/demo", "../.."},
+		{"github.com/dj/monorepo/tools/demo/v3", "../.."},
+		{"github.com/dj/monorepo/tools/v1", "../.."},
+		{"gitlab.com/dj/monorepo/tools/demo", "."},
+	}
+	for _, tt := range tests {
+		t.Run(tt.module, func(t *testing.T) {
+			opts := Options{Type: ProjectTypeCLI, Name: "demo", Module: tt.module, Author: "Test Author"}
+			opts.Normalize()
+			if opts.RepositoryRoot != tt.want {
+				t.Errorf("RepositoryRoot = %q, want %q", opts.RepositoryRoot, tt.want)
+			}
+		})
+	}
+}
+
+func subdirectoryOptions(target string) Options {
+	return Options{
+		Type: ProjectTypeCLI, TargetDir: target, Name: "demo", Binary: "demo",
+		Module: "github.com/dj/monorepo/tools/demo", Author: "Test Author",
+		GoVersion: "1.26.2", InitGit: true, RunTidy: true,
+	}
+}
+
+func TestGenerate_SubdirectoryModuleKeepsSkillAtRepositoryRoot(t *testing.T) {
+	repo := t.TempDir()
+	target := filepath.Join(repo, "tools", "demo")
+
+	res, err := Generate(subdirectoryOptions(target))
+	if err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+	if res.TidyError != nil {
+		t.Fatalf("go mod tidy failed: %v", res.TidyError)
+	}
+
+	if _, err := os.Stat(filepath.Join(repo, "skills", "demo", "SKILL.md")); err != nil {
+		t.Errorf("skill is not at the repository root: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(target, "skills")); !os.IsNotExist(err) {
+		t.Errorf("skill directory created inside the module: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(target, ".git")); !os.IsNotExist(err) || res.GitInitialized {
+		t.Errorf("initialized a nested repository: %v", err)
+	}
+	warned := false
+	for _, w := range res.Warnings {
+		warned = warned || strings.Contains(w, ".github/workflows")
+	}
+	if !warned {
+		t.Errorf("warnings = %q, want the workflow location", res.Warnings)
+	}
+	readme, err := os.ReadFile(filepath.Join(target, "README.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(readme), "(../../skills/demo/SKILL.md)") {
+		t.Errorf("README skill link does not reach the repository root:\n%s", readme)
+	}
+
+	// The generated test reads the skill through RepositoryRoot, so it fails if
+	// the path, the printed URL, and the file disagree.
+	cmd := exec.Command("go", "test", "-run", "TestSkillDocumentsCommandInterface", "./...")
+	cmd.Dir = target
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated skill test failed: %v\n%s", err, out)
+	}
+}
+
+func TestGenerate_SubdirectoryModuleRejections(t *testing.T) {
+	t.Run("target outside the module path", func(t *testing.T) {
+		repo := t.TempDir()
+		opts := subdirectoryOptions(filepath.Join(repo, "elsewhere"))
+		_, err := Generate(opts)
+		if err == nil || !strings.Contains(err.Error(), "must end in that path") {
+			t.Fatalf("err = %v", err)
+		}
+		if entries, _ := os.ReadDir(repo); len(entries) != 0 {
+			t.Fatalf("rejected target wrote %v", entries)
+		}
+	})
+
+	t.Run("existing skill", func(t *testing.T) {
+		repo := t.TempDir()
+		skill := filepath.Join(repo, "skills", "demo", "SKILL.md")
+		if err := os.MkdirAll(filepath.Dir(skill), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(skill, []byte("mine"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		opts := subdirectoryOptions(filepath.Join(repo, "tools", "demo"))
+		opts.RunTidy = false
+		if _, err := Generate(opts); err == nil || !strings.Contains(err.Error(), "already exists") {
+			t.Fatalf("err = %v", err)
+		}
+		if data, _ := os.ReadFile(skill); string(data) != "mine" {
+			t.Fatalf("skill overwritten: %q", data)
+		}
+		opts.Force = true
+		if _, err := Generate(opts); err != nil {
+			t.Fatalf("Generate with force failed: %v", err)
+		}
+		if data, _ := os.ReadFile(skill); string(data) == "mine" {
+			t.Fatal("force did not overwrite the skill")
+		}
+	})
+}
