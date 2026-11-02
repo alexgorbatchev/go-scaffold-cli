@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"os"
 
+	cobrahelptree "github.com/alexgorbatchev/cobra-help-tree/v4"
 	"github.com/spf13/cobra"
 
-	"github.com/alexgorbatchev/go-scaffold-cli/internal/agent"
+	"github.com/alexgorbatchev/go-scaffold-cli/v2/internal/displaypath"
 )
 
 func main() {
@@ -19,10 +20,11 @@ func run(cmd *cobra.Command) int {
 		err = helpWriteError
 	}
 	if err != nil {
-		if agent.IsAgentMode() {
-			fmt.Fprintf(cmd.ErrOrStderr(), "ERR: %v\n", err)
+		message := displaypath.FoldText(err.Error())
+		if cobrahelptree.IsAgentMode() {
+			fmt.Fprintf(cmd.ErrOrStderr(), "ERR: %s\n", message)
 		} else {
-			fmt.Fprintf(cmd.ErrOrStderr(), "[ERROR] %v\n", err)
+			fmt.Fprintf(cmd.ErrOrStderr(), "[ERROR] %s\n", message)
 		}
 		return 1
 	}

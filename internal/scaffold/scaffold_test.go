@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -570,8 +571,8 @@ func TestGenerate_ScaffoldedCLICompilesAndRuns(t *testing.T) {
 	if err != nil {
 		t.Fatalf("running bin --version failed: %v", err)
 	}
-	if strings.TrimSpace(string(outVersion)) != "0.1.0" {
-		t.Errorf("expected version 0.1.0, got: %q", string(outVersion))
+	if strings.TrimSpace(string(outVersion)) != "dev" {
+		t.Errorf("expected version dev for a source build, got: %q", string(outVersion))
 	}
 
 	// Run compiled binary in AGENT mode
@@ -753,27 +754,31 @@ func TestGenerate_TargetNonEmptyWithoutForce(t *testing.T) {
 }
 
 func TestGenerate_GitAndTidyErrorsRecorded(t *testing.T) {
-	tmpDir := t.TempDir()
-	target := filepath.Join(tmpDir, "bad-project")
-
 	opts := Options{
 		Type:      ProjectTypeLib,
-		TargetDir: target,
+		TargetDir: filepath.Join(t.TempDir(), "bad-project"),
 		Name:      "bad-project",
 		PkgName:   "badproject",
+		Module:    "github.com/test/bad-project",
 		InitGit:   true,
 		RunTidy:   true,
 	}
-
-	_ = os.MkdirAll(target, 0755)
-	_ = os.WriteFile(filepath.Join(target, ".git"), []byte("not a directory"), 0644)
-	opts.Force = true
+	t.Setenv("PATH", t.TempDir()) // Neither git nor go can start.
 
 	res, err := Generate(opts)
 	if err != nil {
 		t.Fatalf("Generate failed: %v", err)
 	}
-	_ = res
+	if res.GitError == nil || res.TidyError == nil {
+		t.Fatalf("GitError = %v, TidyError = %v, want both set", res.GitError, res.TidyError)
+	}
+	if res.GitInitialized || res.TidyCompleted {
+		t.Fatalf("GitInitialized = %t, TidyCompleted = %t, want false", res.GitInitialized, res.TidyCompleted)
+	}
+	want := []string{res.GitError.Error(), res.TidyError.Error()}
+	if !slices.Equal(res.Warnings, want) {
+		t.Fatalf("Warnings = %q, want %q", res.Warnings, want)
+	}
 }
 
 func TestInspect_EdgeCases(t *testing.T) {
@@ -802,8 +807,8 @@ func TestInspect_EdgeCases(t *testing.T) {
 	if resCLI.Score != 0.0 {
 		t.Errorf("expected score 0.0 for empty dir, got %v", resCLI.Score)
 	}
-	if len(resCLI.Issues) != 11 {
-		t.Errorf("expected 11 issues for empty CLI dir, got %d: %v", len(resCLI.Issues), resCLI.Issues)
+	if len(resCLI.Issues) != 12 {
+		t.Errorf("expected 12 issues for empty CLI dir, got %d: %v", len(resCLI.Issues), resCLI.Issues)
 	}
 
 	// 4. Empty directory inspection for Lib
@@ -1000,4 +1005,122 @@ func TestGenerate_SubdirectoryModuleRejections(t *testing.T) {
 			t.Fatal("force did not overwrite the skill")
 		}
 	})
+}
+
+func writeInspectFile(t *testing.T, dir, name, content string) {
+	t.Helper()
+	path := filepath.Join(dir, filepath.FromSlash(name))
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestInspect_CurrentStandards(t *testing.T) {
+	const currentHelpTree = "module github.com/test/demo\n\nrequire github.com/alexgorbatchev/cobra-help-tree/v4 v4.0.0\n"
+	const skill = "---\nname: \"demo\"\n---\n"
+	tests := []struct {
+		name      string
+		goMod     string
+		files     map[string]string
+		wantTree  bool
+		wantSkill bool
+		wantIssue string
+	}{
+		{
+			name:      "skill at the repository root",
+			goMod:     currentHelpTree,
+			files:     map[string]string{"cmd/demo/main.go": "package main\n", "skills/demo/SKILL.md": skill},
+			wantTree:  true,
+			wantSkill: true,
+		},
+		{
+			name:      "older help tree major version",
+			goMod:     "module github.com/test/demo\n\nrequire github.com/alexgorbatchev/cobra-help-tree/v2 v2.0.1\n",
+			files:     map[string]string{"cmd/demo/main.go": "package main\n", "skills/demo/SKILL.md": skill},
+			wantSkill: true,
+			wantIssue: "go.mod must require " + cobraHelpTreeModule,
+		},
+		{
+			name:      "newer help tree major version with the same prefix",
+			goMod:     "module github.com/test/demo\n\nrequire github.com/alexgorbatchev/cobra-help-tree/v40 v40.0.0\n",
+			files:     map[string]string{"cmd/demo/main.go": "package main\n", "skills/demo/SKILL.md": skill},
+			wantSkill: true,
+			wantIssue: "go.mod must require " + cobraHelpTreeModule,
+		},
+		{
+			name:      "skill under cmd",
+			goMod:     currentHelpTree,
+			files:     map[string]string{"cmd/demo/main.go": "package main\n", "cmd/demo/SKILL.md": skill},
+			wantTree:  true,
+			wantIssue: "missing skills/demo/SKILL.md at the repository root",
+		},
+		{
+			name:  "embedded skill",
+			goMod: currentHelpTree,
+			files: map[string]string{
+				"cmd/demo/main.go":     "package main\n\n//go:embed SKILL.md\nvar skill string\n",
+				"skills/demo/SKILL.md": skill,
+			},
+			wantTree:  true,
+			wantIssue: "cmd/demo/main.go embeds SKILL.md: keep the skill in the repository and print its install command",
+		},
+		{
+			name:      "skill named for another binary",
+			goMod:     currentHelpTree,
+			files:     map[string]string{"cmd/demo/main.go": "package main\n", "skills/demo/SKILL.md": "---\nname: other\n---\n"},
+			wantTree:  true,
+			wantIssue: "skills/demo/SKILL.md must set name to demo",
+		},
+		{
+			name:      "no binary",
+			goMod:     currentHelpTree,
+			files:     map[string]string{"cmd/.keep": ""},
+			wantTree:  true,
+			wantIssue: "missing cmd/<binary> directory, so no binary has a skill",
+		},
+		{
+			name:      "no cmd directory",
+			goMod:     currentHelpTree,
+			wantTree:  true,
+			wantIssue: "missing cmd/ directory, so no binary has a skill",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeInspectFile(t, dir, "go.mod", tt.goMod)
+			for name, content := range tt.files {
+				writeInspectFile(t, dir, name, content)
+			}
+			res, err := Inspect(dir, ProjectTypeCLI)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if res.HasCobraHelpTree != tt.wantTree || res.HasSkill != tt.wantSkill {
+				t.Fatalf("HasCobraHelpTree = %t, HasSkill = %t, issues %q", res.HasCobraHelpTree, res.HasSkill, res.Issues)
+			}
+			if tt.wantIssue != "" && !slices.Contains(res.Issues, tt.wantIssue) {
+				t.Fatalf("issues %q do not include %q", res.Issues, tt.wantIssue)
+			}
+		})
+	}
+}
+
+func TestInspect_SubdirectoryModuleReadsRepositoryRootSkill(t *testing.T) {
+	root := t.TempDir()
+	module := filepath.Join(root, "tools", "demo")
+	writeInspectFile(t, module, "go.mod", "module github.com/test/repo/tools/demo\n")
+	writeInspectFile(t, module, "cmd/demo/main.go", "package main\n")
+	writeInspectFile(t, root, "skills/demo/SKILL.md", "---\nname: demo\n---\n")
+
+	res, err := Inspect(module, ProjectTypeCLI)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !res.HasSkill {
+		t.Fatalf("HasSkill = false, issues %q", res.Issues)
+	}
 }

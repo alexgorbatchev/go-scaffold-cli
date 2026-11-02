@@ -13,13 +13,15 @@ import (
 	"github.com/spf13/pflag"
 )
 
-const skillAlert = "ALERT: Agents must read `AGENT=1 go-scaffold skill` before using this tool.\n"
+const (
+	skillAlert   = "ALERT: Agents must read `AGENT=1 go-scaffold skill` before using this tool.\n"
+	skillInstall = "Install the go-scaffold skill using the Skills CLI:\n\n" +
+		"  npx skills add alexgorbatchev/go-scaffold-cli --skill go-scaffold\n\n" +
+		"Skill:\n\n" +
+		"  https://github.com/alexgorbatchev/go-scaffold-cli/tree/main/skills/go-scaffold\n"
+)
 
 func TestSkillCommand(t *testing.T) {
-	want, err := os.ReadFile("SKILL.md")
-	if err != nil {
-		t.Fatal(err)
-	}
 	for _, mode := range []string{"0", "1"} {
 		t.Run(mode, func(t *testing.T) {
 			t.Setenv("AGENT", mode)
@@ -28,17 +30,16 @@ func TestSkillCommand(t *testing.T) {
 			if err != nil {
 				t.Fatalf("skill failed: %v", err)
 			}
-			if out != string(want) {
-				t.Fatal("skill output must match SKILL.md byte for byte")
+			if out != skillInstall {
+				t.Fatalf("skill output = %q, want %q", out, skillInstall)
 			}
 		})
 	}
 }
 
 func TestSkillCommandRejectsArguments(t *testing.T) {
-	out, err := executeCommand("skill", "extra")
-	if err == nil || !strings.Contains(err.Error(), "unknown command") {
-		t.Fatalf("expected Cobra argument rejection, got %v: %s", err, out)
+	if out, err := executeCommand("skill", "extra"); err == nil {
+		t.Fatalf("skill must reject arguments, got: %s", out)
 	}
 }
 
@@ -93,17 +94,45 @@ func TestHelpSkillAlert(t *testing.T) {
 				t.Fatalf("explicit help command: %v: %s", err, out)
 			}
 			out, err = executeCommand("--version")
-			if err != nil || out != version+"\n" {
+			if err != nil || out != currentVersion()+"\n" {
 				t.Fatalf("version output changed: %v: %q", err, out)
 			}
 		})
 	}
 }
 
-func TestSkillDocumentsCommandInterface(t *testing.T) {
-	out, err := executeCommand("skill")
+func TestHumanHelpHidesGeneratedCommands(t *testing.T) {
+	t.Setenv("AGENT", "0")
+	out, err := executeCommand("--help")
 	if err != nil {
 		t.Fatal(err)
+	}
+	for _, generated := range []string{"completion", "├─ skill", "╰─ skill"} {
+		if strings.Contains(out, generated) {
+			t.Errorf("human help lists %s:\n%s", generated, out)
+		}
+	}
+	if !strings.Contains(out, "inspect") {
+		t.Errorf("human help lost its commands:\n%s", out)
+	}
+}
+
+func TestSkillDocumentsCommandInterface(t *testing.T) {
+	printed, err := executeCommand("skill")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, skillPath, ok := strings.Cut(strings.TrimSpace(printed), "/tree/"+skillBranch+"/")
+	if !ok {
+		t.Fatalf("skill output has no repository path: %s", printed)
+	}
+	data, err := os.ReadFile(filepath.Join("..", "..", filepath.FromSlash(skillPath), "SKILL.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := string(data)
+	if !strings.Contains(out, `name: "go-scaffold"`) {
+		t.Fatal("the skill's frontmatter name must equal the --skill value")
 	}
 	walkCommands(commandTree(t), func(cmd *cobra.Command) {
 		cmd.InitDefaultHelpFlag()

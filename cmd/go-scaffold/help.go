@@ -1,22 +1,19 @@
 package main
 
 import (
-	"fmt"
-
 	cobrahelptree "github.com/alexgorbatchev/cobra-help-tree/v4"
 	"github.com/spf13/cobra"
+)
 
-	"github.com/alexgorbatchev/go-scaffold-cli/internal/agent"
+const (
+	skillRepository = "alexgorbatchev/go-scaffold-cli"
+	skillBranch     = "main"
 )
 
 var techCatalog = cobrahelptree.TechCatalog{
 	"go-scaffold": {
 		Summary:     "Go CLI and library scaffolding utility",
 		Description: "CLI utility to generate standardized Go CLI and library repositories with Justfile, CI/CD, and tests.",
-	},
-	"go-scaffold skill": {
-		Summary:     "Print the embedded SKILL.md usage guide for agents",
-		Description: "Outputs the complete embedded SKILL.md documentation including CLI contracts and operational examples.",
 	},
 	"go-scaffold cli": {
 		Summary:     "CLI application scaffolding and compliance commands",
@@ -31,7 +28,7 @@ var techCatalog = cobrahelptree.TechCatalog{
 	},
 	"go-scaffold cli inspect": {
 		Summary:     "Audit repository for CLI best practices and standards",
-		Description: "Checks for go.mod, justfile, .gitignore, .goreleaser.yml, workflows, AGENTS.md, README.md, LICENSE, and dual-mode support.",
+		Description: "Checks for go.mod, justfile, .gitignore, .goreleaser.yml, workflows, AGENTS.md, README.md, LICENSE, dual-mode support, the current cobra-help-tree, and an agent skill at the repository root.",
 		Args: []cobrahelptree.ArgSpec{
 			{Name: "[path]", Description: "Target directory to inspect (defaults to current directory)"},
 		},
@@ -63,18 +60,10 @@ var helpWriteError error
 func setupHelp(cmd *cobra.Command) {
 	cobra.CheckErr(cobrahelptree.SetupWithOptions(cmd, cobrahelptree.HelpOptions{
 		Catalog: techCatalog,
+		Skill:   cobrahelptree.SkillSource{Repository: skillRepository, Branch: skillBranch},
+		Tree:    cobrahelptree.TreeOptions{HideGeneratedCommands: true},
 		OnHelpWriteError: func(_ *cobra.Command, err error) {
 			helpWriteError = err
 		},
 	}))
-	help := cmd.HelpFunc()
-	cmd.SetHelpFunc(func(c *cobra.Command, args []string) {
-		if agent.IsAgentMode() {
-			if _, err := fmt.Fprintln(c.OutOrStdout(), "ALERT: Agents must read `AGENT=1 go-scaffold skill` before using this tool."); err != nil {
-				helpWriteError = err
-				return
-			}
-		}
-		help(c, args)
-	})
 }

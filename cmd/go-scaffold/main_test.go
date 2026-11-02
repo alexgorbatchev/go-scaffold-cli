@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -42,8 +43,8 @@ func TestRootCommand_HelpAndVersion(t *testing.T) {
 	if errVer != nil {
 		t.Fatalf("version failed: %v", errVer)
 	}
-	if outVer != version+"\n" {
-		t.Errorf("expected '%s\\n', got %q", version, outVer)
+	if outVer != currentVersion()+"\n" {
+		t.Errorf("expected '%s\\n', got %q", currentVersion(), outVer)
 	}
 }
 
@@ -390,8 +391,8 @@ func TestInspectCommand_EmptyWithIssues(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cli inspect agent failed: %v", err)
 	}
-	if !strings.Contains(outAgentCLI, "issues_count: 11") {
-		t.Errorf("expected 11 issues in agent CLI inspect, got: %s", outAgentCLI)
+	if !strings.Contains(outAgentCLI, "issues_count: 12") {
+		t.Errorf("expected 12 issues in agent CLI inspect, got: %s", outAgentCLI)
 	}
 
 	// Lib issues in human mode
@@ -486,4 +487,52 @@ func TestCreateCommands_ReportWarnings(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDisplayedPathsFoldHome(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	target := filepath.Join(home, "projects", "demo-cli")
+	createArgs := []string{"cli", "create", target, "--module", "github.com/dj/demo-cli", "--no-git", "--no-tidy"}
+	tests := []struct {
+		name string
+		mode string
+		args []string
+		want string
+	}{
+		{"human create", "0", createArgs, "in ~/projects/demo-cli\n"},
+		{"agent create", "1", createArgs, "target_dir: ~/projects/demo-cli\n"},
+		{"human inspect", "0", []string{"cli", "inspect", target}, "CLI Project: ~/projects/demo-cli\n"},
+		{"agent inspect", "1", []string{"lib", "inspect", target}, "target_dir: ~/projects/demo-cli\n"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("AGENT", tt.mode)
+			args := tt.args
+			if args[1] == "create" {
+				args = append(slices.Clone(args), "--force")
+			}
+			out, err := executeCommand(args...)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(out, tt.want) || strings.Contains(out, home) {
+				t.Fatalf("output must fold %s and contain %q:\n%s", home, tt.want, out)
+			}
+		})
+	}
+
+	t.Run("error", func(t *testing.T) {
+		t.Setenv("AGENT", "1")
+		cmd := newRootCommand()
+		stderr := new(bytes.Buffer)
+		cmd.SetErr(stderr)
+		cmd.SetArgs([]string{"cli", "inspect", filepath.Join(home, "missing")})
+		if code := run(cmd); code != 1 {
+			t.Fatalf("exit code = %d, want 1", code)
+		}
+		if !strings.Contains(stderr.String(), "~/missing") || strings.Contains(stderr.String(), home) {
+			t.Fatalf("error must fold the home directory: %q", stderr.String())
+		}
+	})
 }

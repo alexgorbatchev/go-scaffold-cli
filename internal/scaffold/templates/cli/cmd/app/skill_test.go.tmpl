@@ -93,7 +93,7 @@ func TestHelpSkillAlert(t *testing.T) {
 				t.Fatalf("explicit help command: %v: %s", err, out)
 			}
 			out, err = executeCommand("--version")
-			if err != nil || out != version+"\n" {
+			if err != nil || out != currentVersion()+"\n" {
 				t.Fatalf("version output changed: %v: %q", err, out)
 			}
 		})

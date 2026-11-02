@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"path/filepath"
 
+	cobrahelptree "github.com/alexgorbatchev/cobra-help-tree/v4"
 	"github.com/spf13/cobra"
 
-	"github.com/alexgorbatchev/go-scaffold-cli/internal/agent"
-	"github.com/alexgorbatchev/go-scaffold-cli/internal/scaffold"
+	"github.com/alexgorbatchev/go-scaffold-cli/v2/internal/displaypath"
+	"github.com/alexgorbatchev/go-scaffold-cli/v2/internal/scaffold"
 )
 
 type libCreateFlags struct {
@@ -88,13 +89,13 @@ The project name defaults to the directory name of the target path (or the curre
 				return err
 			}
 
-			if agent.IsAgentMode() {
+			if cobrahelptree.IsAgentMode() {
 				fmt.Fprintln(cmd.OutOrStdout(), "status: ok")
 				fmt.Fprintf(cmd.OutOrStdout(), "type: %s\n", res.Type)
 				fmt.Fprintf(cmd.OutOrStdout(), "project: %s\n", res.ProjectName)
 				fmt.Fprintf(cmd.OutOrStdout(), "package: %s\n", res.PkgName)
 				fmt.Fprintf(cmd.OutOrStdout(), "module: %s\n", res.ModuleName)
-				fmt.Fprintf(cmd.OutOrStdout(), "target_dir: %s\n", res.ProjectDir)
+				fmt.Fprintf(cmd.OutOrStdout(), "target_dir: %s\n", displaypath.Fold(res.ProjectDir))
 				fmt.Fprintf(cmd.OutOrStdout(), "dry_run: %t\n", res.DryRun)
 				fmt.Fprintf(cmd.OutOrStdout(), "files_created: %d\n", len(res.Files))
 				for _, f := range res.Files {
@@ -103,7 +104,7 @@ The project name defaults to the directory name of the target path (or the curre
 				if len(res.Warnings) > 0 {
 					fmt.Fprintf(cmd.OutOrStdout(), "warnings_count: %d\n", len(res.Warnings))
 					for _, w := range res.Warnings {
-						fmt.Fprintf(cmd.OutOrStdout(), "warning: %s\n", w)
+						fmt.Fprintf(cmd.OutOrStdout(), "warning: %s\n", displaypath.FoldText(w))
 					}
 				}
 				return nil
@@ -114,7 +115,7 @@ The project name defaults to the directory name of the target path (or the curre
 				prefix = "[DRY-RUN]"
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(), "%s Created library project %s (pkg %s, %s) in %s\n", prefix, res.ProjectName, res.PkgName, res.ModuleName, res.ProjectDir)
+			fmt.Fprintf(cmd.OutOrStdout(), "%s Created library project %s (pkg %s, %s) in %s\n", prefix, res.ProjectName, res.PkgName, res.ModuleName, displaypath.Fold(res.ProjectDir))
 			fmt.Fprintf(cmd.OutOrStdout(), "%s Generated %d files:\n", prefix, len(res.Files))
 			for _, f := range res.Files {
 				fmt.Fprintf(cmd.OutOrStdout(), "  - %s\n", f)
@@ -130,7 +131,7 @@ The project name defaults to the directory name of the target path (or the curre
 
 				fmt.Fprintln(cmd.OutOrStdout(), "\nNext steps:")
 				if relPath != "." {
-					fmt.Fprintf(cmd.OutOrStdout(), "  cd %s\n", relPath)
+					fmt.Fprintf(cmd.OutOrStdout(), "  cd %s\n", displaypath.Fold(relPath))
 				}
 				fmt.Fprintln(cmd.OutOrStdout(), "  just setup")
 				fmt.Fprintln(cmd.OutOrStdout(), "  just check")
@@ -172,10 +173,10 @@ func newLibInspectCommand() *cobra.Command {
 				return err
 			}
 
-			if agent.IsAgentMode() {
+			if cobrahelptree.IsAgentMode() {
 				fmt.Fprintln(cmd.OutOrStdout(), "status: ok")
 				fmt.Fprintf(cmd.OutOrStdout(), "type: %s\n", res.Type)
-				fmt.Fprintf(cmd.OutOrStdout(), "target_dir: %s\n", res.ProjectDir)
+				fmt.Fprintf(cmd.OutOrStdout(), "target_dir: %s\n", displaypath.Fold(res.ProjectDir))
 				fmt.Fprintf(cmd.OutOrStdout(), "score: %.1f\n", res.Score)
 				fmt.Fprintf(cmd.OutOrStdout(), "has_go_mod: %t\n", res.HasGoMod)
 				if res.ModuleName != "" {
@@ -199,7 +200,7 @@ func newLibInspectCommand() *cobra.Command {
 				return nil
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(), "Library Project: %s\n", res.ProjectDir)
+			fmt.Fprintf(cmd.OutOrStdout(), "Library Project: %s\n", displaypath.Fold(res.ProjectDir))
 			fmt.Fprintf(cmd.OutOrStdout(), "Standards Score: %.1f / 10\n\n", res.Score)
 
 			checks := []struct {

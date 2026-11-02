@@ -4,10 +4,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	version = "1.0.1"
-)
-
 func newRootCommand() *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:   "go-scaffold",
@@ -15,7 +11,7 @@ func newRootCommand() *cobra.Command {
 		Long: `go-scaffold is a utility to quickly scaffold and bootstrap production-ready Go CLI
 and library projects adhering to modern Go standards, Cobra command hierarchies, cobra-help-tree,
 dual-mode human/agent output via AGENT=1, Justfile automation, and GitHub Actions CI/CD.`,
-		Version:       version,
+		Version:       currentVersion(),
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		Args:          cobra.NoArgs,
@@ -28,7 +24,6 @@ dual-mode human/agent output via AGENT=1, Justfile automation, and GitHub Action
 
 	rootCmd.AddCommand(newCLICommand())
 	rootCmd.AddCommand(newLibCommand())
-	rootCmd.AddCommand(newSkillCommand())
 
 	setupHelp(rootCmd)
 

@@ -1,4 +1,4 @@
-module github.com/alexgorbatchev/go-scaffold-cli
+module github.com/alexgorbatchev/go-scaffold-cli/v2
 
 go 1.26.2
 

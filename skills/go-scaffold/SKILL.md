@@ -4,7 +4,7 @@ description: "Use when operating the go-scaffold CLI."
 author: "Alex Gorbatchev"
 metadata:
   created_on: 2026-08-25
-  last_modified: 2026-11-01 14:23
+  last_modified: 2026-11-01 15:45
   status: current
 ---
 
@@ -45,10 +45,11 @@ commands require no network access or credentials.
 
 ## `go-scaffold skill`
 
-Print this embedded SKILL.md verbatim to stdout, including frontmatter,
-in both human and agent modes. Accept no command-specific flags or
-positional arguments. Work from any directory without repository files.
-Output-write failures return an error.
+Print the Skills CLI install command and this skill's URL to stdout,
+byte-identical in human and agent modes. Accept no command-specific flags
+or positional arguments. Make no network request and read no repository
+files. Output-write failures return an error. Human help hides this
+command along with the generated `completion` command.
 
 ## `go-scaffold cli`
 
@@ -95,7 +96,12 @@ Inspect and audit an existing Go CLI repository for compliance with best
 practices and standards. Checks for `go.mod`, `justfile`, `.gitignore`,
 `.goreleaser.yml`, GitHub Actions CI/CD workflows, `LICENSE`, `README.md`,
 `AGENTS.md`, `AGENT=1` dual-mode support in non-test Go source under `cmd/`
-or `internal/`, and `cobra-help-tree` integration.
+or `internal/`, a `go.mod` requirement on `cobra-help-tree/v4`, and a
+`skills/<binary>/SKILL.md` at the repository root for each directory in
+`cmd/`, named for that binary and absent from `//go:embed` directives. Older
+`cobra-help-tree` major versions fail that check. Report each failure as an
+`issue:` line. Show paths under the home directory as `~` in every output
+and error, including `target_dir`.
 Defaults to the current working directory if path is omitted.
 
 ## `go-scaffold lib`

@@ -25,7 +25,7 @@ func TestRun(t *testing.T) {
 		code int
 		want string
 	}{
-		{"success", "0", []string{"--version"}, 0, version + "\n"},
+		{"success", "0", []string{"--version"}, 0, currentVersion() + "\n"},
 		{"human error", "0", []string{"unknown-command"}, 1, "[ERROR] unknown command"},
 		{"agent error", "1", []string{"unknown-command"}, 1, "ERR: unknown command"},
 	} {
@@ -64,8 +64,8 @@ func TestRootCommand_HelpAndVersion(t *testing.T) {
 	if errVer != nil {
 		t.Fatalf("version failed: %v", errVer)
 	}
-	if outVer != version+"\n" {
-		t.Errorf("expected '%s\\n', got %q", version, outVer)
+	if outVer != currentVersion()+"\n" {
+		t.Errorf("expected '%s\\n', got %q", currentVersion(), outVer)
 	}
 }
 

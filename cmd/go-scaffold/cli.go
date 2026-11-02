@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"path/filepath"
 
+	cobrahelptree "github.com/alexgorbatchev/cobra-help-tree/v4"
 	"github.com/spf13/cobra"
 
-	"github.com/alexgorbatchev/go-scaffold-cli/internal/agent"
-	"github.com/alexgorbatchev/go-scaffold-cli/internal/scaffold"
+	"github.com/alexgorbatchev/go-scaffold-cli/v2/internal/displaypath"
+	"github.com/alexgorbatchev/go-scaffold-cli/v2/internal/scaffold"
 )
 
 type cliCreateFlags struct {
@@ -89,13 +90,13 @@ The project name defaults to the directory name of the target path (or the curre
 				return err
 			}
 
-			if agent.IsAgentMode() {
+			if cobrahelptree.IsAgentMode() {
 				fmt.Fprintln(cmd.OutOrStdout(), "status: ok")
 				fmt.Fprintf(cmd.OutOrStdout(), "type: %s\n", res.Type)
 				fmt.Fprintf(cmd.OutOrStdout(), "project: %s\n", res.ProjectName)
 				fmt.Fprintf(cmd.OutOrStdout(), "binary: %s\n", res.BinaryName)
 				fmt.Fprintf(cmd.OutOrStdout(), "module: %s\n", res.ModuleName)
-				fmt.Fprintf(cmd.OutOrStdout(), "target_dir: %s\n", res.ProjectDir)
+				fmt.Fprintf(cmd.OutOrStdout(), "target_dir: %s\n", displaypath.Fold(res.ProjectDir))
 				fmt.Fprintf(cmd.OutOrStdout(), "dry_run: %t\n", res.DryRun)
 				fmt.Fprintf(cmd.OutOrStdout(), "files_created: %d\n", len(res.Files))
 				for _, f := range res.Files {
@@ -104,7 +105,7 @@ The project name defaults to the directory name of the target path (or the curre
 				if len(res.Warnings) > 0 {
 					fmt.Fprintf(cmd.OutOrStdout(), "warnings_count: %d\n", len(res.Warnings))
 					for _, w := range res.Warnings {
-						fmt.Fprintf(cmd.OutOrStdout(), "warning: %s\n", w)
+						fmt.Fprintf(cmd.OutOrStdout(), "warning: %s\n", displaypath.FoldText(w))
 					}
 				}
 				return nil
@@ -115,7 +116,7 @@ The project name defaults to the directory name of the target path (or the curre
 				prefix = "[DRY-RUN]"
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(), "%s Created CLI project %s (%s) in %s\n", prefix, res.ProjectName, res.ModuleName, res.ProjectDir)
+			fmt.Fprintf(cmd.OutOrStdout(), "%s Created CLI project %s (%s) in %s\n", prefix, res.ProjectName, res.ModuleName, displaypath.Fold(res.ProjectDir))
 			fmt.Fprintf(cmd.OutOrStdout(), "%s Generated %d files:\n", prefix, len(res.Files))
 			for _, f := range res.Files {
 				fmt.Fprintf(cmd.OutOrStdout(), "  - %s\n", f)
@@ -131,7 +132,7 @@ The project name defaults to the directory name of the target path (or the curre
 
 				fmt.Fprintln(cmd.OutOrStdout(), "\nNext steps:")
 				if relPath != "." {
-					fmt.Fprintf(cmd.OutOrStdout(), "  cd %s\n", relPath)
+					fmt.Fprintf(cmd.OutOrStdout(), "  cd %s\n", displaypath.Fold(relPath))
 				}
 				fmt.Fprintln(cmd.OutOrStdout(), "  just setup")
 				fmt.Fprintln(cmd.OutOrStdout(), "  just check")
@@ -173,10 +174,10 @@ func newCLIInspectCommand() *cobra.Command {
 				return err
 			}
 
-			if agent.IsAgentMode() {
+			if cobrahelptree.IsAgentMode() {
 				fmt.Fprintln(cmd.OutOrStdout(), "status: ok")
 				fmt.Fprintf(cmd.OutOrStdout(), "type: %s\n", res.Type)
-				fmt.Fprintf(cmd.OutOrStdout(), "target_dir: %s\n", res.ProjectDir)
+				fmt.Fprintf(cmd.OutOrStdout(), "target_dir: %s\n", displaypath.Fold(res.ProjectDir))
 				fmt.Fprintf(cmd.OutOrStdout(), "score: %.1f\n", res.Score)
 				fmt.Fprintf(cmd.OutOrStdout(), "has_go_mod: %t\n", res.HasGoMod)
 				if res.ModuleName != "" {
@@ -195,6 +196,7 @@ func newCLIInspectCommand() *cobra.Command {
 				fmt.Fprintf(cmd.OutOrStdout(), "has_agents_doc: %t\n", res.HasAgentsDoc)
 				fmt.Fprintf(cmd.OutOrStdout(), "has_agent_mode: %t\n", res.HasAgentMode)
 				fmt.Fprintf(cmd.OutOrStdout(), "has_cobra_help_tree: %t\n", res.HasCobraHelpTree)
+				fmt.Fprintf(cmd.OutOrStdout(), "has_skill: %t\n", res.HasSkill)
 				fmt.Fprintf(cmd.OutOrStdout(), "issues_count: %d\n", len(res.Issues))
 				for _, issue := range res.Issues {
 					fmt.Fprintf(cmd.OutOrStdout(), "issue: %s\n", issue)
@@ -202,7 +204,7 @@ func newCLIInspectCommand() *cobra.Command {
 				return nil
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(), "CLI Project: %s\n", res.ProjectDir)
+			fmt.Fprintf(cmd.OutOrStdout(), "CLI Project: %s\n", displaypath.Fold(res.ProjectDir))
 			fmt.Fprintf(cmd.OutOrStdout(), "Standards Score: %.1f / 10\n\n", res.Score)
 
 			checks := []struct {
@@ -221,6 +223,7 @@ func newCLIInspectCommand() *cobra.Command {
 				{"AGENTS.md", res.HasAgentsDoc, ""},
 				{"AGENT=1 dual-mode helper", res.HasAgentMode, ""},
 				{"cobra-help-tree integration", res.HasCobraHelpTree, ""},
+				{"agent skill", res.HasSkill, ""},
 			}
 
 			for _, c := range checks {

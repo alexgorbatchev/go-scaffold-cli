@@ -7,16 +7,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	version = "0.1.0"
-)
-
 func newRootCommand() *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:           "{{.Binary}}",
 		Short:         "{{.Description}}",
 		Long:          "{{.Description}}.",
-		Version:       version,
+		Version:       currentVersion(),
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		Args:          cobra.NoArgs,
@@ -43,12 +39,12 @@ func newStatusCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if cobrahelptree.IsAgentMode() {
 				fmt.Fprintln(cmd.OutOrStdout(), "status: ready")
-				fmt.Fprintln(cmd.OutOrStdout(), "version: "+version)
+				fmt.Fprintln(cmd.OutOrStdout(), "version: "+currentVersion())
 				return nil
 			}
 
 			fmt.Fprintln(cmd.OutOrStdout(), "[OK] System status: ready")
-			fmt.Fprintln(cmd.OutOrStdout(), "Version: "+version)
+			fmt.Fprintln(cmd.OutOrStdout(), "Version: "+currentVersion())
 			return nil
 		},
 	}

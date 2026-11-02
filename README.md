@@ -13,7 +13,7 @@
 - Takes a target directory, defaulting to the current one, and derives the project, binary, package, and module names from it unless you pass your own.
 - Writes the project files, then initializes a git repository and resolves dependencies.
 - Prints the next commands to run, along with any warnings about what it could not finish.
-- For an existing repository, `inspect` reports which standard files and features are missing and gives a score.
+- For an existing repository, `inspect` reports which standard files and features are missing or out of date and gives a score.
 
 # How it Really Works
 
@@ -61,7 +61,7 @@ go-scaffold cli create ./my-tool-cli --dry-run
 go-scaffold cli inspect ./
 go-scaffold lib inspect ../my-lib
 
-# Print the agent usage guide
+# Print the command that installs the agent skill
 go-scaffold skill
 ```
 

@@ -6,8 +6,15 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
+	"slices"
 	"strings"
 )
+
+// cobraHelpTreeModule is the release line generated CLIs depend on.
+const cobraHelpTreeModule = "github.com/alexgorbatchev/cobra-help-tree/v4"
+
+var embeddedSkillRegex = regexp.MustCompile(`(?m)^//go:embed\s.*SKILL\.md`)
 
 // InspectResult represents standards compliance checks on a Go CLI or library project.
 type InspectResult struct {
@@ -26,18 +33,19 @@ type InspectResult struct {
 	HasAgentsDoc       bool        `json:"has_agents_doc"`
 	HasAgentMode       bool        `json:"has_agent_mode,omitempty"`
 	HasCobraHelpTree   bool        `json:"has_cobra_help_tree,omitempty"`
+	HasSkill           bool        `json:"has_skill,omitempty"`
 	HasGoSource        bool        `json:"has_go_source,omitempty"`
 	HasGoTest          bool        `json:"has_go_test,omitempty"`
 	Issues             []string    `json:"issues"`
 	Score              float64     `json:"score"`
 }
 
-// usesAgentMode reports whether non-test Go source under cmd/ or internal/ reads
-// AGENT, directly or through cobrahelptree.IsAgentMode.
-func usesAgentMode(projectDir string) bool {
-	found := false
+// findGoSource returns the first non-test Go file under cmd/ or internal/ whose
+// source satisfies match, or "" when none does.
+func findGoSource(projectDir string, match func(source string) bool) string {
+	found := ""
 	for _, root := range []string{"cmd", "internal"} {
-		// Unreadable paths count as source without the helper, so the walk has no error to report.
+		// Unreadable paths count as source that does not match, so the walk has no error to report.
 		_ = filepath.WalkDir(filepath.Join(projectDir, root), func(p string, d fs.DirEntry, err error) error {
 			if err != nil || d.IsDir() || !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
 				return nil
@@ -46,14 +54,76 @@ func usesAgentMode(projectDir string) bool {
 			if err != nil {
 				return nil
 			}
-			if strings.Contains(string(data), `os.Getenv("AGENT")`) || strings.Contains(string(data), "cobrahelptree.IsAgentMode()") {
-				found = true
+			if match(string(data)) {
+				found = p
 				return fs.SkipAll
 			}
 			return nil
 		})
+		if found != "" {
+			break
+		}
 	}
 	return found
+}
+
+// usesAgentMode reports whether non-test Go source under cmd/ or internal/ reads
+// AGENT, directly or through cobrahelptree.IsAgentMode.
+func usesAgentMode(projectDir string) bool {
+	return findGoSource(projectDir, func(source string) bool {
+		return strings.Contains(source, `os.Getenv("AGENT")`) || strings.Contains(source, "cobrahelptree.IsAgentMode()")
+	}) != ""
+}
+
+// requiresCurrentHelpTree reports whether go.mod names the module exactly, so an
+// older major version does not count.
+func requiresCurrentHelpTree(goMod string) bool {
+	for line := range strings.Lines(goMod) {
+		if slices.Contains(strings.Fields(line), cobraHelpTreeModule) {
+			return true
+		}
+	}
+	return false
+}
+
+// checkSkill returns what keeps each binary in cmd/ from having its skill at
+// skills/<binary>/SKILL.md in the repository root, named for the binary and kept
+// out of the executable.
+func checkSkill(projectDir, module string) []string {
+	var issues []string
+	if p := findGoSource(projectDir, embeddedSkillRegex.MatchString); p != "" {
+		rel, err := filepath.Rel(projectDir, p)
+		if err != nil {
+			rel = p
+		}
+		issues = append(issues, fmt.Sprintf("%s embeds SKILL.md: keep the skill in the repository and print its install command", filepath.ToSlash(rel)))
+	}
+
+	entries, err := os.ReadDir(filepath.Join(projectDir, "cmd"))
+	if err != nil {
+		return append(issues, "missing cmd/ directory, so no binary has a skill")
+	}
+	root := filepath.Join(projectDir, filepath.FromSlash(repositoryRoot(moduleSubdirectory(module))))
+	binaries := 0
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		binaries++
+		data, err := os.ReadFile(filepath.Join(root, "skills", e.Name(), "SKILL.md"))
+		if err != nil {
+			issues = append(issues, fmt.Sprintf("missing skills/%s/SKILL.md at the repository root", e.Name()))
+			continue
+		}
+		name := regexp.MustCompile(`(?m)^name:\s*"?` + regexp.QuoteMeta(e.Name()) + `"?\s*$`)
+		if !name.Match(data) {
+			issues = append(issues, fmt.Sprintf("skills/%s/SKILL.md must set name to %s", e.Name(), e.Name()))
+		}
+	}
+	if binaries == 0 {
+		issues = append(issues, "missing cmd/<binary> directory, so no binary has a skill")
+	}
+	return issues
 }
 
 // Inspect checks an existing directory against Go CLI or library project standards.
@@ -95,9 +165,12 @@ func Inspect(targetDir string, pType ProjectType) (*InspectResult, error) {
 			}
 		}
 		if pType == ProjectTypeCLI {
-			if strings.Contains(string(data), "cobra-help-tree") {
+			switch {
+			case requiresCurrentHelpTree(string(data)):
 				res.HasCobraHelpTree = true
-			} else {
+			case strings.Contains(string(data), "cobra-help-tree"):
+				res.Issues = append(res.Issues, "go.mod must require "+cobraHelpTreeModule)
+			default:
 				res.Issues = append(res.Issues, "missing cobra-help-tree dependency in go.mod")
 			}
 		}
@@ -181,7 +254,11 @@ func Inspect(targetDir string, pType ProjectType) (*InspectResult, error) {
 			res.Issues = append(res.Issues, "missing AGENT=1 dual-mode helper")
 		}
 
-		totalChecks := 11.0
+		skillIssues := checkSkill(absDir, res.ModuleName)
+		res.HasSkill = len(skillIssues) == 0
+		res.Issues = append(res.Issues, skillIssues...)
+
+		totalChecks := 12.0
 		passed := 0.0
 		if res.HasGoMod {
 			passed++
@@ -214,6 +291,9 @@ func Inspect(targetDir string, pType ProjectType) (*InspectResult, error) {
 			passed++
 		}
 		if res.HasCobraHelpTree {
+			passed++
+		}
+		if res.HasSkill {
 			passed++
 		}
 
