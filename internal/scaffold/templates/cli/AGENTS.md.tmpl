@@ -20,7 +20,7 @@ status: current
 
 ## Setup & Environment
 - **Prerequisites:** Go {{.GoVersion}}+, `just`.
-- **Temporary Files:** Temporary file operations use `.tmp/` within the project root.
+- **Development Storage:** Use a unique, task-owned child of the project's ignored `.tmp/` for disposable development scratch. Point `TMPDIR` and `GOTMPDIR` at that child and remove only that child when its last consumer finishes, including on failure or cancellation. Never wipe `.tmp/` or another task's files. Keep regenerable caches in ignored `.cache/` and retained state, locks, queues, logs, and reports in ignored `.state/`; files that must outlive the session do not belong in `.tmp/`. `just clean` removes build and coverage outputs and preserves these storage directories.
 
 ## Conventions
 - **Output Formatting & No Decorative Headers:** All CLI output must be plain text without emojis across all modes.

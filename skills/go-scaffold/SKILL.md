@@ -4,7 +4,7 @@ description: "Use when operating the go-scaffold CLI."
 author: "Alex Gorbatchev"
 metadata:
   created_on: 2026-08-25
-  last_modified: 2026-11-01 15:45
+  last_modified: 2026-11-04 22:43
   status: current
 ---
 
@@ -26,6 +26,11 @@ do not infer successful git initialization or tidy from exit status alone.
 Set `AGENT=0` or leave it unset for human output. Values `1`, `true`, and
 `yes` enable agent output, with case and surrounding whitespace ignored.
 Operational commands use the arguments and options documented below.
+
+Generated CLI and library projects ignore `.tmp/`, `.cache/`, and `.state/`.
+Their `just clean` recipe removes `bin/`, `dist/`, and `coverage.out` while
+preserving scratch, caches, and retained state. Generated agent instructions
+describe task-owned scratch cleanup and the separate cache and state locations.
 
 ## `go-scaffold`
 

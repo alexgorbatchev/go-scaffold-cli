@@ -46,7 +46,9 @@ just check
 ### Always
 - **Mandatory Testing & Coverage**: Any time code is changed such that results from running that code are changed, a test file must be changed as well, and **>= 90% code coverage is required** (verified via `just test`).
 - **Standard Library First**: Maintain minimal external dependencies. Prefer Go standard library primitives.
+- **Development Storage**: Use a unique, task-owned child of the project's ignored `.tmp/` for disposable development scratch. Point `TMPDIR` and `GOTMPDIR` at that child and remove only that child when its last consumer finishes, including on failure or cancellation. Keep regenerable caches in ignored `.cache/` and retained state, locks, queues, logs, and reports in ignored `.state/`; files that must outlive the session do not belong in `.tmp/`. `just clean` removes build and coverage outputs and preserves these storage directories.
 
 ### Never
 - Never commit compiled binaries or test artifacts to the repository.
 - Never use heredocs in scripts or commands.
+- Never wipe `.tmp/` or another task's files.

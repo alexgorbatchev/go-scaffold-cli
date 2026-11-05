@@ -41,9 +41,9 @@ check: setup
     go vet ./...
     go test -v ./...
 
-# Clean up build binaries and temporary files
+# Clean build and coverage outputs
 clean:
-    rm -rf bin coverage.out .tmp dist
+    rm -rf bin coverage.out dist
 
 # Download project dependencies for local development
 setup:

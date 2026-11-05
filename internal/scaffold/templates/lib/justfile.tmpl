@@ -32,6 +32,6 @@ check:
     go vet ./...
     go test -v ./...
 
-# Clean temporary and test artifacts
+# Clean build and coverage outputs
 clean:
-    rm -rf bin dist coverage.out .tmp
+    rm -rf bin dist coverage.out
